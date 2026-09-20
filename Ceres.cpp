@@ -14,12 +14,40 @@ Switch3 switchB;
 AnalogControl pots[8];
 
 bool  padPressed[12];
+float padPressure[12]; // values go from 0 to 1, 0 when the pad is not touched
 int   switchAValue;
 int   switchBValue;
 float potValue[8];
 
+// Touch sensor thresholds in raw capacitance counts (these are the libDaisy defaults)
+constexpr uint8_t kTouchThreshold   = 12;
+constexpr uint8_t kReleaseThreshold = 6;
+
+// Pressure tuning
+constexpr float kPressureMaxDelta    = 60.0f; // counts past baseline that equal full pressure (1.0), tune for your pads
+constexpr float kPressureSmoothing   = 0.4f;  // 0 to 1, higher = faster response, lower = smoother
+constexpr bool  kPressureExponential = false; // true squares the curve for finer control at light touch
+static_assert(kPressureMaxDelta > kTouchThreshold, "kPressureMaxDelta must be larger than kTouchThreshold");
+
 void OnPadTouch(int pad)   { (void)pad; }
 void OnPadRelease(int pad) { (void)pad; }
+
+// Estimate how hard a pad is pressed, 0 to 1.
+// A harder press flattens the finger, which increases contact area and capacitance,
+// so the filtered reading drops further below the baseline.
+float ReadPadPressure(int pad)
+{
+    int32_t filtered = mpr.FilteredData(pad) & 0x03FF; // 10 bit live reading
+    int32_t baseline = mpr.BaselineData(pad);          // already scaled to 10 bit by libDaisy
+    int32_t delta    = baseline - filtered;            // grows as pressure increases
+
+    // Map touch threshold .. max delta onto 0 .. 1
+    float norm = (float)(delta - kTouchThreshold) / (kPressureMaxDelta - kTouchThreshold);
+    if(norm < 0.0f) norm = 0.0f;
+    if(norm > 1.0f) norm = 1.0f;
+
+    return kPressureExponential ? (norm * norm) : norm;
+}
 
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size)
 {
@@ -36,8 +64,12 @@ int main(void)
     hardware.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
     hardware.SetAudioBlockSize(4);
 
+    hardware.StartLog();
+
     // Initialize touch sensor
     Mpr121I2C::Config mprConfig;
+    mprConfig.touch_threshold   = kTouchThreshold;
+    mprConfig.release_threshold = kReleaseThreshold;
     mpr.Init(mprConfig);
     uint16_t prevPadState = 0;
 
@@ -70,11 +102,27 @@ int main(void)
         for(int i = 0; i < 12; i++) {
             bool isTouched  = state & (1 << i);
             bool wasTouched = prevPadState & (1 << i);
+
+            // Update pressure first so it is already valid inside OnPadTouch / OnPadRelease.
+            // Only touched pads are read, since each read is its own I2C transaction.
+            if(isTouched) {
+                float target = ReadPadPressure(i);
+                if(wasTouched)
+                    padPressure[i] += (target - padPressure[i]) * kPressureSmoothing;
+                else
+                    padPressure[i] = target; // snap on the initial strike, no smoothing lag
+            } else {
+                padPressure[i] = 0.0f;
+            }
+
             if(isTouched && !wasTouched)       OnPadTouch(i);
             else if(wasTouched && !isTouched)  OnPadRelease(i);
             padPressed[i] = isTouched;
         }
         prevPadState = state;
+
+        hardware.PrintLine("pressure: %f% ", padPressure[3]);
+        System::Delay(30);
 
         // Set switch values
         switchAValue = switchA.Read(); // 2 == left, 0 == center, 1 == right
