@@ -36,7 +36,7 @@ constexpr float MIN_TRILL_FREQ  = 0.1f;
 constexpr float MAX_TRILL_FREQ  = 200.0f;  
 
 constexpr float MIN_OSC_FREQ  = 40.0f;   
-constexpr float MAX_OSC_FREQ  = 6000.0f; 
+constexpr float MAX_OSC_FREQ  = 3000.0f; 
 
 // Touch sensor thresholds
 constexpr uint8_t kTouchThreshold = 12;
@@ -90,25 +90,21 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     trillClk.SetDistance(distance);
     float trillPeriod = 1.0f / baseTrillFreq;
 
-    // // float skew = 
-    // float skewAtk = 0.5f;
-    // float skewDec = 0.5f;
-    // float envAtkA = trillPeriod * skewAtk * widthA;
-    // float envDecA = trillPeriod * skewDec * widthA;
-    // float envAtkB = trillPeriod * skewAtk * widthB;
-    // float envDecB = trillPeriod * skewDec * widthB;
-    // trillEnvA.SetTime(ADENV_SEG_ATTACK, envAtkA);
-    // trillEnvA.SetTime(ADENV_SEG_DECAY, envDecA);
-    // trillEnvB.SetTime(ADENV_SEG_ATTACK, envAtkB);
-    // trillEnvB.SetTime(ADENV_SEG_DECAY, envDecB);
-    float max = 1.5f;
-    float multA = max * 0.5f;
-    float multB = max * 0.5f;
+    float minWidth = 0.04f * trillPeriod;
+    float maxWidth = 1.0f * trillPeriod;
 
-    trillEnvA.SetTime(ADENV_SEG_ATTACK, trillPeriod * multA);
-    trillEnvA.SetTime(ADENV_SEG_DECAY, trillPeriod * multA);
-    trillEnvB.SetTime(ADENV_SEG_ATTACK, trillPeriod * multB);
-    trillEnvB.SetTime(ADENV_SEG_DECAY, trillPeriod * multB);
+    float baseWidthA = minWidth + widthA * (maxWidth - minWidth);
+    float baseWidthB = minWidth + widthB * (maxWidth - minWidth);
+
+    float trillEnvAtkA = baseWidthA;
+    float trillEnvDecA = baseWidthA;
+    float trillEnvAtkB = baseWidthB;
+    float trillEnvDecB = baseWidthB;
+
+    trillEnvA.SetTime(ADENV_SEG_ATTACK, trillEnvAtkA);
+    trillEnvA.SetTime(ADENV_SEG_DECAY, trillEnvDecA);
+    trillEnvB.SetTime(ADENV_SEG_ATTACK, trillEnvAtkB);
+    trillEnvB.SetTime(ADENV_SEG_DECAY, trillEnvDecB);
 
     auto trillClkVals = trillClk.Process();
     if ((trillClkVals[0] > 0) && (lastTrillClkVals[0] == 0)) {
@@ -124,7 +120,7 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
         float out1 = trillEnvA.Process() * 0.2f * oscA.Process();
         float out2 = trillEnvB.Process() * 0.2f * oscB.Process();
 
-        float mix = out1 + out2;
+        float mix = SoftClip(out1 + out2);
 
         out[0][i] = mix;
         out[1][i] = mix;
@@ -139,7 +135,7 @@ int main(void)
 
     float sampleRate = hardware.AudioSampleRate();
 
-    // hardware.StartLog();
+    //hardware.StartLog();
 
     // Initialize touch sensor
     Mpr121I2C::Config mprConfig;
