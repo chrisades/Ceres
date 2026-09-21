@@ -2,44 +2,58 @@
 #include "daisysp.h"
 #include "dev/mpr121.h"
 
+#include "TrillClock.h"
+
+const char* USBD_MANUFACTURER_STRING = "ChrisAdes";
+const char* USBD_PRODUCT_STRING_HS = "Ceres";
+const char* USBD_PRODUCT_STRING_FS = "Ceres";
+
 using namespace daisy;
 using namespace seed;
 using namespace daisysp;
 
 DaisySeed hardware;
-
 Mpr121I2C mpr;
 Switch3 switchA;
 Switch3 switchB;
 AnalogControl pots[8];
 
+Oscillator oscA;
+Oscillator oscB;
+AdEnv trillEnvA;
+AdEnv trillEnvB;
+
+TrillClock trillClk;
+std::array<uint8_t, 2> lastTrillClkVals;
+
 bool  padPressed[12];
-float padPressure[12]; // values go from 0 to 1, 0 when the pad is not touched
+float padPressure[12];
 int   switchAValue;
 int   switchBValue;
 float potValue[8];
 
-// Touch sensor thresholds in raw capacitance counts (these are the libDaisy defaults)
-constexpr uint8_t kTouchThreshold   = 12;
+constexpr float MIN_TRILL_FREQ  = 0.1f;   
+constexpr float MAX_TRILL_FREQ  = 200.0f;  
+
+constexpr float MIN_OSC_FREQ  = 40.0f;   
+constexpr float MAX_OSC_FREQ  = 6000.0f; 
+
+// Touch sensor thresholds
+constexpr uint8_t kTouchThreshold = 12;
 constexpr uint8_t kReleaseThreshold = 6;
 
 // Pressure tuning
-constexpr float kPressureMaxDelta    = 60.0f; // counts past baseline that equal full pressure (1.0), tune for your pads
+constexpr float kPressureMaxDelta    = 100.0f; // counts past baseline that equal full pressure (1.0), tune for your pads
 constexpr float kPressureSmoothing   = 0.4f;  // 0 to 1, higher = faster response, lower = smoother
-constexpr bool  kPressureExponential = false; // true squares the curve for finer control at light touch
+constexpr bool  kPressureExponential = true; // true squares the curve for finer control at light touch
 static_assert(kPressureMaxDelta > kTouchThreshold, "kPressureMaxDelta must be larger than kTouchThreshold");
 
-void OnPadTouch(int pad)   { (void)pad; }
-void OnPadRelease(int pad) { (void)pad; }
-
 // Estimate how hard a pad is pressed, 0 to 1.
-// A harder press flattens the finger, which increases contact area and capacitance,
-// so the filtered reading drops further below the baseline.
 float ReadPadPressure(int pad)
 {
-    int32_t filtered = mpr.FilteredData(pad) & 0x03FF; // 10 bit live reading
-    int32_t baseline = mpr.BaselineData(pad);          // already scaled to 10 bit by libDaisy
-    int32_t delta    = baseline - filtered;            // grows as pressure increases
+    int32_t filtered = mpr.FilteredData(pad) & 0x03FF; 
+    int32_t baseline = mpr.BaselineData(pad);          
+    int32_t delta    = baseline - filtered;            
 
     // Map touch threshold .. max delta onto 0 .. 1
     float norm = (float)(delta - kTouchThreshold) / (kPressureMaxDelta - kTouchThreshold);
@@ -49,12 +63,71 @@ float ReadPadPressure(int pad)
     return kPressureExponential ? (norm * norm) : norm;
 }
 
+void OnPadTouch(int pad)   { (void)pad; }
+void OnPadRelease(int pad) { (void)pad; }
+
+
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size)
 {
+    float trillFreq = potValue[6];
+    float distance = potValue[7];
+
+    float oscAFreq = potValue[0];
+    float oscBFreq = potValue[5];
+
+    float widthA = potValue[1];
+    float widthB = potValue[4];
+
+
+    float baseTrillFreq = MIN_TRILL_FREQ + trillFreq * (MAX_TRILL_FREQ - MIN_TRILL_FREQ);
+    float baseOscAFreq = MIN_OSC_FREQ + oscAFreq * (MAX_OSC_FREQ - MIN_OSC_FREQ);
+    float baseOscBFreq = MIN_OSC_FREQ + oscBFreq * (MAX_OSC_FREQ - MIN_OSC_FREQ);
+
+    oscA.SetFreq(baseOscAFreq);
+    oscB.SetFreq(baseOscBFreq);
+
+    trillClk.SetFreq(baseTrillFreq);
+    trillClk.SetDistance(distance);
+    float trillPeriod = 1.0f / baseTrillFreq;
+
+    // // float skew = 
+    // float skewAtk = 0.5f;
+    // float skewDec = 0.5f;
+    // float envAtkA = trillPeriod * skewAtk * widthA;
+    // float envDecA = trillPeriod * skewDec * widthA;
+    // float envAtkB = trillPeriod * skewAtk * widthB;
+    // float envDecB = trillPeriod * skewDec * widthB;
+    // trillEnvA.SetTime(ADENV_SEG_ATTACK, envAtkA);
+    // trillEnvA.SetTime(ADENV_SEG_DECAY, envDecA);
+    // trillEnvB.SetTime(ADENV_SEG_ATTACK, envAtkB);
+    // trillEnvB.SetTime(ADENV_SEG_DECAY, envDecB);
+    float max = 1.5f;
+    float multA = max * 0.5f;
+    float multB = max * 0.5f;
+
+    trillEnvA.SetTime(ADENV_SEG_ATTACK, trillPeriod * multA);
+    trillEnvA.SetTime(ADENV_SEG_DECAY, trillPeriod * multA);
+    trillEnvB.SetTime(ADENV_SEG_ATTACK, trillPeriod * multB);
+    trillEnvB.SetTime(ADENV_SEG_DECAY, trillPeriod * multB);
+
+    auto trillClkVals = trillClk.Process();
+    if ((trillClkVals[0] > 0) && (lastTrillClkVals[0] == 0)) {
+        trillEnvA.Trigger();
+    }
+    if ((trillClkVals[1] > 0) && (lastTrillClkVals[1] == 0)) {
+        trillEnvB.Trigger();
+    }
+    lastTrillClkVals = trillClkVals;
+
     for(size_t i = 0; i < size; i++)
     {
-        out[0][i] = 0.0f;
-        out[1][i] = 0.0f;
+        float out1 = trillEnvA.Process() * 0.2f * oscA.Process();
+        float out2 = trillEnvB.Process() * 0.2f * oscB.Process();
+
+        float mix = out1 + out2;
+
+        out[0][i] = mix;
+        out[1][i] = mix;
     }
 }
 
@@ -64,13 +137,14 @@ int main(void)
     hardware.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
     hardware.SetAudioBlockSize(4);
 
-    hardware.StartLog();
+    float sampleRate = hardware.AudioSampleRate();
+
+    // hardware.StartLog();
 
     // Initialize touch sensor
     Mpr121I2C::Config mprConfig;
-    mprConfig.touch_threshold   = kTouchThreshold;
-    mprConfig.release_threshold = kReleaseThreshold;
     mpr.Init(mprConfig);
+    mpr.SetThresholds(kTouchThreshold, kReleaseThreshold);
     uint16_t prevPadState = 0;
 
     // Initialize switches
@@ -92,6 +166,23 @@ int main(void)
         pots[i].Init(hardware.adc.GetPtr(i), hardware.AudioCallbackRate());
     }
     hardware.adc.Start();
+
+    // Initialize Audio Objects
+    oscA.Init(sampleRate);
+    oscB.Init(sampleRate);
+
+    trillEnvA.Init(sampleRate);
+    trillEnvA.SetMin(0.0);
+    trillEnvA.SetMax(1.f);
+    trillEnvA.SetCurve(0);
+
+    trillEnvB.Init(sampleRate);
+    trillEnvB.SetMin(0.0);
+    trillEnvB.SetMax(1.f);
+    trillEnvB.SetCurve(0.0f);
+
+    trillClk.Init(2.0f, sampleRate);
+
 
     hardware.StartAudio(AudioCallback);
 
@@ -121,8 +212,8 @@ int main(void)
         }
         prevPadState = state;
 
-        hardware.PrintLine("pressure: %f% ", padPressure[3]);
-        System::Delay(30);
+        // hardware.PrintLine("padPressure: " FLT_FMT3, FLT_VAR3(padPressure[3]));
+        // System::Delay(30);
 
         // Set switch values
         switchAValue = switchA.Read(); // 2 == left, 0 == center, 1 == right
