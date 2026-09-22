@@ -14,6 +14,7 @@
       ],
       "includePath": [
         "${workspaceFolder}/**",
+        "${workspaceFolder}/source/**",
         "${workspaceFolder}/lib/libDaisy//**",
         "${workspaceFolder}/lib/DaisySP//**"
       ],

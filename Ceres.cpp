@@ -1,10 +1,9 @@
 #include "daisy_seed.h"
 #include "daisysp.h"
 #include "dev/mpr121.h"
-
-#include "Config.h"
 #include "TrillClock.h"
 #include "WavetableOsc.h"
+#include "config.h"
 
 const char* USBD_MANUFACTURER_STRING = "ChrisAdes";
 const char* USBD_PRODUCT_STRING_HS = "Ceres";
@@ -87,6 +86,7 @@ float SCALES[NUM_SCALES][7] = {{1.0f, 1.12246f, 1.25992, 1.49831f, 1.68179, 2.0f
 constexpr int NULL_PLACE = -1;
 int SCALE_MAP[12] = {NULL_PLACE, NULL_PLACE, NULL_PLACE, 0, 4, 5, 6, 3, 1, 2, NULL_PLACE, NULL_PLACE};
 
+bool hold = false;
 
 void OnPadTouch(int pad) { 
      
@@ -124,27 +124,41 @@ void OnPadRelease(int pad) {
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size)
 {
     float trillFreq = potValue[6];
-    float distance = potValue[7];
+    float distance = potValue[3];
     float oscAFreq = potValue[0];
     float oscBFreq = potValue[5];
     float widthA = potValue[1];
     float widthB = potValue[4];
     float shape = potValue[2];
-    float fold = potValue[3];
+    float fold = potValue[7];
+
+    float pitchMult = octave * pitchGlide.Process(pitchTarget);
 
     // float baseTrillFreq = MIN_TRILL_FREQ + trillFreq * (MAX_TRILL_FREQ - MIN_TRILL_FREQ);
     // float baseOscAFreq = MIN_OSC_FREQ + oscAFreq * (MAX_OSC_FREQ - MIN_OSC_FREQ);
     // float baseOscBFreq = MIN_OSC_FREQ + oscBFreq * (MAX_OSC_FREQ - MIN_OSC_FREQ);
-    float pitchMult = octave * pitchGlide.Process(pitchTarget);
 
-    float baseTrillFreq = pitchMult * fmap(trillFreq, MIN_TRILL_FREQ, MAX_TRILL_FREQ);
-    float baseOscAFreq = pitchMult * fmap(oscAFreq, MIN_OSC_FREQ, MAX_OSC_FREQ);
-    float baseOscBFreq = pitchMult * fmap(oscBFreq, MIN_OSC_FREQ, MAX_OSC_FREQ);
+    float pitchMultTrill = 1.0f;
+    float pitchMultOsc = 1.0f;
+    switch (switchAValue) {
+        case (2):
+            pitchMultTrill = pitchMult;
+            break;
+        case (0):
+            pitchMultTrill = pitchMult;
+            pitchMultOsc = pitchMult;
+            break;
+        case (1):
+            pitchMultOsc = pitchMult;
+            break;
+    }
+
+    float baseTrillFreq = pitchMultTrill * fmap(trillFreq, MIN_TRILL_FREQ, MAX_TRILL_FREQ);
+    float baseOscAFreq = pitchMultOsc * fmap(oscAFreq, MIN_OSC_FREQ, MAX_OSC_FREQ);
+    float baseOscBFreq = pitchMultOsc * fmap(oscBFreq, MIN_OSC_FREQ, MAX_OSC_FREQ);
 
     wtOscA.SetFreq(baseOscAFreq);
-    wtOscA.SetPhaseDistortion(fold);
     wtOscB.SetFreq(baseOscBFreq);
-    wtOscB.SetPhaseDistortion(fold);
 
     trillClk.SetFreq(baseTrillFreq);
     trillClk.SetDistance(distance);
@@ -179,23 +193,52 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     }
     lastTrillClkVal = trillClkVal;
 
-    float env = touchEnv.Process(padPressed[3]
-            || padPressed[4] || padPressed[5] || padPressed[6]
-            || padPressed[7] || padPressed[8] || padPressed[9]);
+    hold = false;
+    switch (switchBValue) {
+        case (2):
+            touchEnv.SetAttackTime(10.0f);
+            touchEnv.SetReleaseTime(10.0f);
+            break;
+        case (0):
+            touchEnv.SetAttackTime(0.5f);
+            touchEnv.SetReleaseTime(1.0f);
+            break;
+        case (1):
+            hold = true;
+            break;
+    }
+    hardware.SetLed(hold);
 
     for(size_t i = 0; i < size; i++)
     {
+        float env = touchEnv.Process(hold || padPressed[3]
+                || padPressed[4] || padPressed[5] || padPressed[6]
+                || padPressed[7] || padPressed[8] || padPressed[9]);
+
+        float envA = trillEnvA.Process();
+        float envB = trillEnvB.Process();
+
+        float pdAmtA = 0.5f + fold * env * 0.5f; 
+        float pdAmtB = pdAmtA; 
+        // switch (switchBValue) {
+        //     case (2):
+        //         pdAmtA = 0.5f + fold * env * 0.5f; 
+        //         pdAmtB = pdAmtA; 
+        //     case (0):
+        //         pdAmtA = 0.5f + fold * env * envA * 0.5f; 
+        //         pdAmtB = 0.5f + fold * env * envB * 0.5f; 
+        //     case (1):
+        //         pdAmtA = 0.5f + fold * envA * 0.5f; 
+        //         pdAmtB = 0.5f + fold * envB * 0.5f; 
+        // }
+
+        wtOscA.SetPhaseDistortion(pdAmtA);
+        wtOscB.SetPhaseDistortion(pdAmtB);
+
+        float out1 = envA * 0.3f * wtOscA.Process();
+        float out2 = envB * 0.3f * wtOscB.Process();
         float level = levelSmoother.Process(levelTarget);
-
-        float out1 = trillEnvA.Process() * 0.3f * wtOscA.Process();
-        float out2 = trillEnvB.Process() * 0.3f * wtOscB.Process();
         float mix = SoftClip(level * env * (out1 + out2));
-
-        // float preFoldGain = 1.0f + fold * 9.0f;
-        // float postFoldGain = 1.0f - 0.9f * fold;
-        // wFold.SetGain(preFoldGain); //use one pole to smooth
-        // // wFold.SetOffset();
-        // float fold = postFoldGain * wFold.Process(mix);
 
         out[0][i] = mix;
         out[1][i] = mix;
@@ -281,8 +324,6 @@ int main(void)
             bool isTouched  = state & (1 << i);
             bool wasTouched = prevPadState & (1 << i);
 
-            // Update pressure first so it is already valid inside OnPadTouch / OnPadRelease.
-            // Only touched pads are read, since each read is its own I2C transaction.
             if(isTouched) {
                 float target = ReadPadPressure(i);
                 if(wasTouched)

@@ -8,24 +8,24 @@ Download the [Binary file](https://github.com/chrisades/Ceres/releases/latest/do
 <img src="touch.jpeg" width="300"/>
 
 **Switches**
-- S07-S08 - 
-- S09-S10 - 
+- S07-S08 - pad notes change (trill speed | both | tone pitch)
+- S09-S10 - touch envelope (slow | fast | hold)
 
 **Knobs**
-- S30 - 
-- S31 - 
-- S32 - 
-- S33 - 
-- S34 - 
-- S35 - 
-- S36 - 
-- S37 - 
+- S30 - tone A frequency
+- S31 - trill width A
+- S32 - trill envelope shape
+- S33 - trill distance
+- S34 - trill width B
+- S35 - tone A frequency
+- S36 - trill speed
+- S37 - waveform morph
 
 **Pads**
-- P01 - 
-- P00/P02 - 
-- P03...P09 - 
-- P10/P11 - 
+- P01 - change scale
+- P00/P02 - octave -1/+1
+- P03...P09 - notes
+- P10/P11 - output level -1/+1
 
 ## PREREQUISITES
 - [Daisy Toolchain](https://docs.daisy.audio/tutorials/cpp-dev-env/) (ARM GCC + make)
