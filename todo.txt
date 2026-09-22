@@ -1,6 +1,4 @@
 Implement Polyphony
-Implement wavefolding
-Implement modulation 
 
 Test cross modulation when trills overlap
 Think about feedback with different trill params.
