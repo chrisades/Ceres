@@ -78,6 +78,15 @@ float WavetableOsc::Distort(float phase_) const //knee
         return 1.0f - 0.5f * (phase_ - 1.0f) / (pd - 1.0f);
     }
 }
+// float WavetableOsc::Distort(float phase_) const //knee
+// {
+//     if (phase_ < pd) {
+//         return (pd / 0.5f) * phase_; 
+//     }
+//     else {
+//         return -2.0f * (pd - 1.0f) * (phase_ - 1.0f) + 1.0f;
+//     }
+// }
 
 //Hermite Interpolation
 float WavetableOsc::InterpolateHermite4pt3oX(float index_) const

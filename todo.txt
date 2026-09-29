@@ -1,4 +1,7 @@
 Implement Polyphony
+-Voice trigger resets trill clock
+
+Implement MIDI
 Implement wavefolding
 Implement modulation 
 
@@ -7,3 +10,10 @@ Think about feedback with different trill params.
 
 Fixed scales is not the move. Think about chaos or randomness
 Implement noise
+
+
+-----BUGS-----
+If trillRate is high, and we are at the highest octave for it, 
+and trillEnv shape is at or near zero, 
+then making trillWidthA or trillWidthB zero causes a crash
+if we press pad 6 on scale 1, scale 3, on scale 4

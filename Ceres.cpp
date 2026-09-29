@@ -38,8 +38,6 @@ Adsr touchEnv;
 TrillClock trillClk;
 std::array<uint8_t, 2> lastTrillClkVal;
 
-Wavefolder wFold;
-
 bool  padPressed[12];
 float padPressure[12];
 int   switchAValue;
@@ -134,28 +132,32 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
 
     float pitchMult = octave * pitchGlide.Process(pitchTarget);
 
-    // float baseTrillFreq = MIN_TRILL_FREQ + trillFreq * (MAX_TRILL_FREQ - MIN_TRILL_FREQ);
-    // float baseOscAFreq = MIN_OSC_FREQ + oscAFreq * (MAX_OSC_FREQ - MIN_OSC_FREQ);
-    // float baseOscBFreq = MIN_OSC_FREQ + oscBFreq * (MAX_OSC_FREQ - MIN_OSC_FREQ);
-
     float pitchMultTrill = 1.0f;
-    float pitchMultOsc = 1.0f;
+    float pitchMultOscA = 1.0f;
+    float pitchMultOscB = 1.0f;
     switch (switchAValue) {
         case (2):
             pitchMultTrill = pitchMult;
+            pitchMultOscA = pitchMult;
             break;
         case (0):
             pitchMultTrill = pitchMult;
-            pitchMultOsc = pitchMult;
+            pitchMultOscA = pitchMult;
+            pitchMultOscB = pitchMult;
             break;
         case (1):
-            pitchMultOsc = pitchMult;
+            pitchMultOscA = pitchMult;
+            pitchMultOscB = pitchMult;
             break;
     }
 
-    float baseTrillFreq = pitchMultTrill * fmap(trillFreq, MIN_TRILL_FREQ, MAX_TRILL_FREQ);
-    float baseOscAFreq = pitchMultOsc * fmap(oscAFreq, MIN_OSC_FREQ, MAX_OSC_FREQ);
-    float baseOscBFreq = pitchMultOsc * fmap(oscBFreq, MIN_OSC_FREQ, MAX_OSC_FREQ);
+    float baseTrillFreq = pitchMultTrill * fmap(trillFreq, MIN_TRILL_FREQ, MAX_TRILL_FREQ, Mapping::LOG);
+    float baseOscAFreq = pitchMultOscA * fmap(oscAFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG);
+    float baseOscBFreq = pitchMultOscB * fmap(oscBFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG);
+
+    // float baseTrillFreq = MIN_TRILL_FREQ + trillFreq * (MAX_TRILL_FREQ - MIN_TRILL_FREQ);
+    // float baseOscAFreq = MIN_OSC_FREQ + oscAFreq * (MAX_OSC_FREQ - MIN_OSC_FREQ);
+    // float baseOscBFreq = MIN_OSC_FREQ + oscBFreq * (MAX_OSC_FREQ - MIN_OSC_FREQ);
 
     wtOscA.SetFreq(baseOscAFreq);
     wtOscB.SetFreq(baseOscBFreq);
@@ -164,7 +166,7 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     trillClk.SetDistance(distance);
     float trillPeriod = 1.0f / baseTrillFreq;
 
-    float minWidth = 0.1f * trillPeriod;
+    float minWidth = 0.2f * trillPeriod;
     float maxWidth = 4.0f * trillPeriod;
 
     float baseWidthA = minWidth + widthA * (maxWidth - minWidth);
@@ -220,17 +222,6 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
 
         float pdAmtA = 0.5f + fold * env * 0.5f; 
         float pdAmtB = pdAmtA; 
-        // switch (switchBValue) {
-        //     case (2):
-        //         pdAmtA = 0.5f + fold * env * 0.5f; 
-        //         pdAmtB = pdAmtA; 
-        //     case (0):
-        //         pdAmtA = 0.5f + fold * env * envA * 0.5f; 
-        //         pdAmtB = 0.5f + fold * env * envB * 0.5f; 
-        //     case (1):
-        //         pdAmtA = 0.5f + fold * envA * 0.5f; 
-        //         pdAmtB = 0.5f + fold * envB * 0.5f; 
-        // }
 
         wtOscA.SetPhaseDistortion(pdAmtA);
         wtOscB.SetPhaseDistortion(pdAmtB);
@@ -248,7 +239,7 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
 int main(void)
 {
     hardware.Init();
-    hardware.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
+    hardware.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_96KHZ);
     hardware.SetAudioBlockSize(4);
 
     float sampleRate = hardware.AudioSampleRate();
@@ -303,7 +294,6 @@ int main(void)
     touchEnv.SetReleaseTime(1.0f);
 
     trillClk.Init(2.0f, sampleRate);
-    wFold.Init();
 
     float onePoleFreq = 100.0f; // lower = slower/longer, higher = snappier
     pitchGlide.Init();

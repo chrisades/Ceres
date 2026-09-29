@@ -4,8 +4,6 @@ TARGET = Ceres
 USE_DAISYSP_LGPL = 1
 
 # Sources
-CPP_SOURCES = Ceres.cpp 
-
 CPP_SOURCES = \
     Ceres.cpp \
     $(wildcard source/*.cpp) \
