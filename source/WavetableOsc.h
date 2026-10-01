@@ -1,7 +1,7 @@
 #pragma once
 // #include <cmath>
 #include "daisysp.h"
-#include "config.h"
+#include "Config.h"
 
 
 /** Wavetable Oscillator that uses a referenced wavetable array
@@ -14,7 +14,7 @@ public:
     WavetableOsc(const WavetableOsc&) = delete;
     WavetableOsc& operator=(const WavetableOsc&) = delete;
     WavetableOsc(WavetableOsc&&) = default;
-    WavetableOsc& operator=(WavetableOsc&&) = default;
+    WavetableOsc& operator=(WavetableOsc&&) = delete;
 
     void Init(float sampleRate)
     {

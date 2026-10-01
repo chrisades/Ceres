@@ -1,19 +1,22 @@
+Implement MIDI
+
 Implement Polyphony
 -Voice trigger resets trill clock
 
-Implement MIDI
-Implement wavefolding
-Implement modulation 
+Make s30 control freqA and freqB and make s35 detune freqB from A
 
+Think about feedback with different trill params and voices
+Operator modulators are sine wave with phase distortion as well
+Cross phase distortion modulation
 Test cross modulation when trills overlap
-Think about feedback with different trill params.
 
-Fixed scales is not the move. Think about chaos or randomness
+Try fixed scales with polyphony, maybe it works
+
 Implement noise
 
-
------BUGS-----
-If trillRate is high, and we are at the highest octave for it, 
-and trillEnv shape is at or near zero, 
-then making trillWidthA or trillWidthB zero causes a crash
-if we press pad 6 on scale 1, scale 3, on scale 4
+Ceres (receives midi & hw inputs, passes values to synth and calls process)
+-Synth (voice management + interaction, main audio out)
+--Voice (main DSP)
+---TrillClock
+---WavetableOsc
+--Noise 
