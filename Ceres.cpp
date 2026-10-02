@@ -18,6 +18,7 @@ Switch3 switchB;
 AnalogControl pots[8];
 
 Synth synth;
+// MidiUsbHandler midi;
 
 // Touch sensor thresholds
 constexpr uint8_t PAD_TOUCH_THRESH = 12;
@@ -45,25 +46,7 @@ float ReadPadPressure(int pad)
 
 bool hold = false;
 
-void OnPadTouch(int pad) { synth.PadTouch(pad);
-     
-    // if (SCALE_MAP[pad] != NULL_PLACE) {
-    //     pitch = SCALES[scaleIndex][SCALE_MAP[pad]];
-    // }
-
-    // if (pad == 1) { 
-    //     scaleIndex = ((scaleIndex + 1) % NUM_SCALES); 
-
-    //     for(int i = 0; i < 12; i++) {
-    //         if (padPressed[i] && SCALE_MAP[i] != NULL_PLACE) {
-    //             pitch = SCALES[scaleIndex][SCALE_MAP[i]];
-    //         }   
-    //     }
-    // }
-
-    // if (pad == 0) { octave = fmax(octave * 0.5, 0.125); }
-    // if (pad == 2) { octave = fmin(octave * 2.0, 8.0); }
- }
+void OnPadTouch(int pad) { synth.PadTouch(pad); }
 
 void OnPadRelease(int pad) { synth.PadRelease(pad); }
 
@@ -146,3 +129,36 @@ int main(void)
         System::Delay(4);
     }
 }
+
+
+// void ProcessMidi()
+// {
+//         /** Listen to MIDI for new changes */
+//         midi.Listen();
+
+//         /** When there are messages waiting in the queue... */
+//         while(midi.HasEvents())
+//         {
+//             /** Pull the oldest one from the list... */
+//             auto msg = midi.PopEvent();
+//             switch(msg.type)
+//             {
+//                 case NoteOn:
+//                 {
+//                     auto note_msg = msg.AsNoteOn();
+//                     // if(note_msg.velocity != 0)
+//                         // osc.SetFreq(mtof(note_msg.note));
+//                 }
+//                 break;
+
+//                 case NoteOff:
+//                 {
+//                     auto note_msg = msg.AsNoteOff();
+//                     // ProcessNoteOff(note_msg.note);
+//                 }
+//                 break;
+
+//                 default: break;
+//             }
+//         }
+// }

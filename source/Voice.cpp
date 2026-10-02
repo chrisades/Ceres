@@ -22,11 +22,14 @@ void Voice::Init(float sampleRate, size_t blockSize)
     touchEnv.SetDecayTime(0.2f);
     touchEnv.SetSustainLevel(1.0f);
     touchEnv.SetReleaseTime(1.0f);
+
+    smoothCoef = 1.0f / (0.0001f * sampleRate); // 1 / (time*sr)
 }
 
 void Voice::UpdateParams(const VoiceParams& params)
 {
-    float pitchMult = octave * pitch;
+    // fonepole(pitchMult, pitch, 4.0f*smoothCoef); // Smooth the pitch multiplier. //if doesn't work then try updating at voice on.
+    float pitchMult = pitch;
     float pitchMultTrill = 1.0f;
     float pitchMultOscA = 1.0f;
     float pitchMultOscB = 1.0f;
@@ -100,11 +103,25 @@ void Voice::UpdateParams(const VoiceParams& params)
 
     // float pdAmtA = 0.5f + params.morph * env * 0.5f; 
     // float pdAmtB = pdAmtA; 
-    float pdAmtA = 0.5f + params.morph * 0.5f;//envA * 0.5f; 
-    float pdAmtB = 0.5f + params.morph * 0.5f;//envB * 0.5f; 
+    float pdAmtATarget = 0.5f + params.morph * 0.5f;//envA * 0.5f; 
+    float pdAmtBTarget = 0.5f + params.morph * 0.5f;//envB * 0.5f; 
+    fonepole(pdAmtA, pdAmtATarget, smoothCoef);
+    fonepole(pdAmtB, pdAmtBTarget, smoothCoef);
+
     wtOscA.SetPhaseDistortion(pdAmtA);
     wtOscB.SetPhaseDistortion(pdAmtB);
 }
+
+// void Voice::UpdateParamsAudioCallback(const VoiceParams& params)
+// {
+//     float pdAmtATarget = 0.5f + params.morph * 0.5f;//envA * 0.5f; 
+//     float pdAmtBTarget = 0.5f + params.morph * 0.5f;//envB * 0.5f; 
+//     fonepole(pdAmtA, pdAmtATarget, smoothCoef);
+//     fonepole(pdAmtB, pdAmtBTarget, smoothCoef);
+
+//     wtOscA.SetPhaseDistortion(pdAmtA);
+//     wtOscB.SetPhaseDistortion(pdAmtB);
+// }
 
 float Voice::Process()
 {
@@ -117,27 +134,24 @@ float Voice::Process()
     }
     lastTrillClkVal = trillClkVal;
 
-    float env = touchEnv.Process(true);
-    float envA = trillEnvA.Process();
-    float envB = trillEnvB.Process();
+    touchEnvLevel = touchEnv.Process(gate);
+    float envALevel = trillEnvA.Process();
+    float envBLevel = trillEnvB.Process();
 
-    float outA = envA * wtOscA.Process();
-    float outB = envB * wtOscB.Process();
+    float outA = envALevel * wtOscA.Process();
+    float outB = envBLevel * wtOscB.Process();
 
-    return env * (outA + outB);
+    return touchEnvLevel * (outA + outB);
 }
 
-void Voice::Start()
-{
-    gate = true;
-}
+void Voice::Reset() { }
 
-void Voice::Stop()
-{
-    gate = false;
-}
+void Voice::Start() { gate = true; }
 
-bool Voice::IsActive()
-{
-    return touchEnv.IsRunning();
-}
+void Voice::Release() { gate = false; }
+
+bool Voice::IsActive() { return touchEnv.IsRunning(); }
+
+bool Voice::IsReleased() { return gate == false; }
+
+bool Voice::IsInAttack() { return touchEnv.GetCurrentSegment() == ADSR_SEG_ATTACK; }

@@ -1,22 +1,24 @@
-Implement MIDI
-
-Implement Polyphony
--Voice trigger resets trill clock
+Implement MIDI Notes
+Fix scales, make your own (fifths+fourths, thirds)
+Fix voice stealing click (retrigger touchenv with touchEnvLevel smoother?)
 
 Make s30 control freqA and freqB and make s35 detune freqB from A
 
-Think about feedback with different trill params and voices
+Implement feedback with different trill params and voices
 Operator modulators are sine wave with phase distortion as well
 Cross phase distortion modulation
 Test cross modulation when trills overlap
 
 Try fixed scales with polyphony, maybe it works
+Try trill frequency living on a different scale
+Try oscA, oscB, and trill living on different scales
 
-Implement noise
+Switch Ideas:
+-Cross mod (with delay?) / feedback mode, phase distoriton curve
+-Phase distortion type
 
-Ceres (receives midi & hw inputs, passes values to synth and calls process)
--Synth (voice management + interaction, main audio out)
---Voice (main DSP)
----TrillClock
----WavetableOsc
---Noise 
+
+Implement noise mix
+
+Other Ideas:
+-Envelope mod destinations (trill, freq)

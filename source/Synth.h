@@ -8,12 +8,16 @@ public:
     void Init(float sampleRate, size_t blockSize);
 
     void PadTouch(int pad);
-
     void PadRelease(int pad);
+
+    void VoiceStart(int owner);
+    void VoiceRelease(int owner);
 
     void Process(daisy::AudioHandle::OutputBuffer &out, size_t size);
 
     void UpdateParams();
+
+    int FindFreeVoice();
 
     bool  padPressed[12];
     float padPressure[12];
@@ -27,6 +31,7 @@ private:
 
     daisysp::OnePole levelSmoother;
     float levelTarget = 0.6f;
-    
+    float octave= 1.0f;
     int scaleIndex = 0;
+    int lastPlayedVoice = 0;
 };

@@ -7,7 +7,7 @@ void Synth::Init(float sampleRate, size_t blockSize)
     levelSmoother.SetFilterMode(OnePole::FILTER_MODE_LOW_PASS);
     levelSmoother.SetFrequency(onePoleFreq / sampleRate);
 
-    for(int v = 0; v < NUM_VOICES; v++) {
+    for(int v = 0; v < NUM_VOICES; ++v) {
         voice[v].Init(sampleRate, blockSize);
     }
 }
@@ -18,11 +18,11 @@ void Synth::Process(daisy::AudioHandle::OutputBuffer &out, size_t size)
     float mixR;
     float level;
     
-    for(size_t i = 0; i < size; i++) {
+    for(size_t i = 0; i < size; ++i) {
         mixL = 0.0f;
         mixR = 0.0f;
 
-        for(int v = 0; v < NUM_VOICES; v++) {
+        for(int v = 0; v < NUM_VOICES; ++v) {
             mixL += voice[v].Process();
         }
 
@@ -48,13 +48,8 @@ void Synth::UpdateParams()
     params.switchAValue = switchAValue;
     params.switchBValue = switchBValue;
 
-    //TESTING
-    voice[0].pitch = 1.0f;
-    // voice[1].pitch = 1.5f;
-    // voice[2].pitch = 0.5f;
-
-    for(int v = 0; v < NUM_VOICES; v++) {
-        // if (voice[v].IsActive()) 
+    for(int v = 0; v < NUM_VOICES; ++v) {
+        if (voice[v].IsActive()) 
             voice[v].UpdateParams(params);
     }
 }
@@ -64,24 +59,64 @@ void Synth::PadTouch(int pad)
     if (pad == 10) { levelTarget = fmax(levelTarget - 0.1, 0.1); }
     if (pad == 11) { levelTarget = fmin(levelTarget + 0.1, 1.0); }
 
-    if (pad == 3) {   
-        voice[0].pitch = 1.0f;
-        voice[0].Start();
-    }  
+    if (pad == 0) { octave = fmax(octave * 0.5, 0.125); }
+    if (pad == 2) { octave = fmin(octave * 2.0, 8.0); }
 
-    if (pad == 4) {   
-        voice[1].pitch = 1.5f;
-        voice[1].Start();
-    }  
+    if (SCALE_MAP[pad] != NULL_PLACE) {
+        VoiceStart(pad);
+    }
 }
 
 void Synth::PadRelease(int pad)
 {
-    if (pad == 3) {   
-        voice[0].Stop();
-    }  
+    if (SCALE_MAP[pad] != NULL_PLACE) {
+        VoiceRelease(pad);
+    } 
+}
 
-    if (pad == 4) {   
-        voice[1].Stop();
-    }  
+void Synth::VoiceStart(int owner)
+{   
+    // If called by a pad
+    float pitch = octave * SCALES[scaleIndex][SCALE_MAP[owner]];
+    
+    // If called by midi note
+    // float pitch = ....
+
+    int v = FindFreeVoice();
+    voice[v].pitch = pitch;
+    voice[v].trillClk.Reset();
+    voice[v].Start();
+    voice[v].voiceOwner = owner;
+    lastPlayedVoice = v;
+}
+
+void Synth::VoiceRelease(int owner)
+{
+    for(int v = 0; v < NUM_VOICES; v++) {
+        if (voice[v].voiceOwner == owner) {
+            voice[v].Release();
+            voice[v].voiceOwner = -1;
+            return;
+        }
+    }
+}
+
+int Synth::FindFreeVoice()
+{
+    int v = 0;
+    float l = 100.0f;
+    int unReleased = 0;
+    for(int i = 0; i < NUM_VOICES; ++i) {
+        if (!voice[i].IsReleased()) { ++unReleased; }
+        if(voice[i].touchEnvLevel < l && !voice[i].IsInAttack()) {
+            l = voice[i].touchEnvLevel;
+            v = i;
+        }
+    }
+
+    if (unReleased == NUM_VOICES) {
+        return lastPlayedVoice;
+    }
+
+    return v;
 }
