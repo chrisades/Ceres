@@ -17,7 +17,7 @@ public:
 
     void UpdateParams();
 
-    int FindFreeVoice();
+    int FindFreeVoice(int owner);
 
     bool  padPressed[12];
     float padPressure[12];

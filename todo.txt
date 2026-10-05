@@ -1,6 +1,12 @@
+Fix voice stealing click
+
+
+
+
 Implement MIDI Notes
 Fix scales, make your own (fifths+fourths, thirds)
-Fix voice stealing click (retrigger touchenv with touchEnvLevel smoother?)
+
+Implement envelope modulation (pd and trill speed)
 
 Make s30 control freqA and freqB and make s35 detune freqB from A
 

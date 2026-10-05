@@ -23,27 +23,24 @@ class Voice {
         void Init(float sampleRate, size_t blockSize);
         float Process();
         bool IsActive();
-        bool IsReleased();
+        bool IsInRelease();
         void UpdateParams(const VoiceParams& params);
-
-        // void UpdateParamsAudioCallback(const VoiceParams& params);
+        void SetPitch(float p);
 
         void Start();
         void Release();
-
         bool IsInAttack();
-
         void Reset();
 
-        float pitch = 1.0f;
-        
         bool hold = false;
 
-        TrillClock trillClk;
-
         int voiceOwner = -1;
-
+        int voiceOwnerPrev = -1;
         float touchEnvLevel = 0.0f;
+
+        // voice steal smoother params
+        bool steal = false;
+
 
     private:
 
@@ -53,13 +50,18 @@ class Voice {
         AdEnv trillEnvA;
         AdEnv trillEnvB;
         Adsr touchEnv;
+        TrillClock trillClk;
         std::array<uint8_t, 2> lastTrillClkVal;
 
+        VoiceParams params_;
+
+        bool resetTrillClk;
         bool gate = false;
+        float pitch = 1.0f;
+
 
         //values that need smoothing
         float pdAmtA = 0.5f;
         float pdAmtB = 0.5f;
-        // float pitchMult = 1.0f;
         float smoothCoef;
 };

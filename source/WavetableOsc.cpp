@@ -27,8 +27,8 @@ float WavetableOsc::Process()
  */
 void WavetableOsc::SetFreq(float freq_)
 {
-    indexIncrement = k1 * freq;
     freq = freq_;
+    indexIncrement = k1 * freq;
 }
 
 /** Sets the amplitude of the oscillator

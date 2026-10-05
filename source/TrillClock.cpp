@@ -15,16 +15,19 @@ void TrillClock::Init(float freq, float sampleRate)
 
 std::array<uint8_t, 2> TrillClock::Process()
 {
+    if (retrig) {
+        retrig = false;
+        return {1, 0};
+    }
+
     phs_ += phsInc_;
 
     uint8_t clk2 = 0;
-    if(phs_ >= distance_)
-    {
+    if(phs_ >= distance_) {
         clk2 = 1;
     }
 
-    if(phs_ >= TWOPI_F)
-    {
+    if(phs_ >= TWOPI_F) {
         phs_ -= TWOPI_F;
         return {1, clk2};
     }

@@ -30,7 +30,7 @@ class TrillClock
 
     /** resets phase to 0
     */
-    inline void Reset() { phs_ = 0.0f; }
+    inline void Reset() { phs_ = 0.0f; retrig = true;}
     /** Sets frequency at which TrillClock module will run at.
     */
     void SetFreq(float freq);
@@ -47,5 +47,6 @@ class TrillClock
     float freq_;
     float phs_, sampleRate_, phsInc_;
     float distance_;
+    bool retrig;
 };
 }

@@ -17,6 +17,11 @@ void Synth::Process(daisy::AudioHandle::OutputBuffer &out, size_t size)
     float mixL;
     float mixR;
     float level;
+
+    for(int v = 0; v < NUM_VOICES; ++v) {
+        if (voice[v].IsActive())
+            voice[v].UpdateParams(params);
+    }
     
     for(size_t i = 0; i < size; ++i) {
         mixL = 0.0f;
@@ -47,11 +52,6 @@ void Synth::UpdateParams()
     params.morph = potValue[7];
     params.switchAValue = switchAValue;
     params.switchBValue = switchBValue;
-
-    for(int v = 0; v < NUM_VOICES; ++v) {
-        if (voice[v].IsActive()) 
-            voice[v].UpdateParams(params);
-    }
 }
 
 void Synth::PadTouch(int pad)
@@ -82,9 +82,10 @@ void Synth::VoiceStart(int owner)
     // If called by midi note
     // float pitch = ....
 
-    int v = FindFreeVoice();
-    voice[v].pitch = pitch;
-    voice[v].trillClk.Reset();
+    int v = FindFreeVoice(owner);
+
+    voice[v].SetPitch(pitch);
+    voice[v].Reset();
     voice[v].Start();
     voice[v].voiceOwner = owner;
     lastPlayedVoice = v;
@@ -95,19 +96,24 @@ void Synth::VoiceRelease(int owner)
     for(int v = 0; v < NUM_VOICES; v++) {
         if (voice[v].voiceOwner == owner) {
             voice[v].Release();
+            voice[v].voiceOwnerPrev = owner;
             voice[v].voiceOwner = -1;
             return;
         }
     }
 }
 
-int Synth::FindFreeVoice()
+int Synth::FindFreeVoice(int owner)
 {
     int v = 0;
     float l = 100.0f;
     int unReleased = 0;
     for(int i = 0; i < NUM_VOICES; ++i) {
-        if (!voice[i].IsReleased()) { ++unReleased; }
+
+        if (voice[i].voiceOwnerPrev == owner) { return i; } // diables unison like behavior
+
+        if (!voice[i].IsInRelease()) { ++unReleased; }
+
         if(voice[i].touchEnvLevel < l && !voice[i].IsInAttack()) {
             l = voice[i].touchEnvLevel;
             v = i;
