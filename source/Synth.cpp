@@ -84,16 +84,27 @@ void Synth::VoiceStart(int owner)
 
     int v = FindFreeVoice(owner);
 
-    voice[v].SetPitch(pitch);
-    voice[v].Reset();
-    voice[v].Start();
+    // if voice must be faded, call fade start
+    // else start voice normally
+    int numActive = 0;
+    for(int v = 0; v < NUM_VOICES; ++v) { if (voice[v].IsActive()) { ++numActive; } }
+    if ((numActive == NUM_VOICES) && (voice[v].voiceOwnerPrev != owner)) { 
+        voice[v].StealFadeStart(pitch);
+    }
+    else { 
+        voice[v].Start(pitch); 
+    }
+
+    // voice[v].Start(pitch);
+
     voice[v].voiceOwner = owner;
+    voice[v].voiceOwnerPrev = -1;
     lastPlayedVoice = v;
 }
 
 void Synth::VoiceRelease(int owner)
 {
-    for(int v = 0; v < NUM_VOICES; v++) {
+    for(int v = 0; v < NUM_VOICES; ++v) {
         if (voice[v].voiceOwner == owner) {
             voice[v].Release();
             voice[v].voiceOwnerPrev = owner;
@@ -107,12 +118,12 @@ int Synth::FindFreeVoice(int owner)
 {
     int v = 0;
     float l = 100.0f;
-    int unReleased = 0;
+    int numUnReleased = 0;
     for(int i = 0; i < NUM_VOICES; ++i) {
 
-        if (voice[i].voiceOwnerPrev == owner) { return i; } // diables unison like behavior
+        if (voice[i].voiceOwnerPrev == owner && voice[i].voiceOwner == -1) { return i; } // diables unison like behavior
 
-        if (!voice[i].IsInRelease()) { ++unReleased; }
+        if (!voice[i].IsReleased()) { ++numUnReleased; }
 
         if(voice[i].touchEnvLevel < l && !voice[i].IsInAttack()) {
             l = voice[i].touchEnvLevel;
@@ -120,7 +131,7 @@ int Synth::FindFreeVoice(int owner)
         }
     }
 
-    if (unReleased == NUM_VOICES) {
+    if (numUnReleased == NUM_VOICES) {
         return lastPlayedVoice;
     }
 

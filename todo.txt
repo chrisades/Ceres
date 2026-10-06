@@ -1,4 +1,6 @@
 Fix voice stealing click
+-current problems. sometimes when i hold one pad and hit another (in fast env mode)
+-it cuts off the held pad
 
 
 

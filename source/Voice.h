@@ -23,14 +23,14 @@ class Voice {
         void Init(float sampleRate, size_t blockSize);
         float Process();
         bool IsActive();
-        bool IsInRelease();
+        bool IsReleased();
         void UpdateParams(const VoiceParams& params);
-        void SetPitch(float p);
 
-        void Start();
+        void Start(float p);
+        void StealFadeStart(float p);
+
         void Release();
         bool IsInAttack();
-        void Reset();
 
         bool hold = false;
 
@@ -38,12 +38,8 @@ class Voice {
         int voiceOwnerPrev = -1;
         float touchEnvLevel = 0.0f;
 
-        // voice steal smoother params
-        bool steal = false;
-
 
     private:
-
         WavetableOsc wtOscA{TABLES.SIN_TABLE};
         WavetableOsc wtOscB{TABLES.SIN_TABLE};
 
@@ -55,9 +51,17 @@ class Voice {
 
         VoiceParams params_;
 
-        bool resetTrillClk;
+        bool resetTrillClk = false;
         bool gate = false;
         float pitch = 1.0f;
+
+        
+        // voice steal smoother params
+        bool stealFade = false;
+        bool fadeUp = false;
+        float pendingPitch = 1.0f;
+        float STEAL_STEP;
+        float stealGain = 1.0f;
 
 
         //values that need smoothing

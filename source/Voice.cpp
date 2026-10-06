@@ -24,6 +24,7 @@ void Voice::Init(float sampleRate, size_t blockSize)
     touchEnv.SetReleaseTime(1.0f);
 
     //voice steal de-clicker
+    STEAL_STEP = 1.0f / (0.005f * sampleRate);
 }
 
 void Voice::UpdateParams(const VoiceParams& params)
@@ -35,10 +36,9 @@ void Voice::UpdateParams(const VoiceParams& params)
     float pitchMultOscA = 1.0f;
     float pitchMultOscB = 1.0f;
 
-    switch (params.switchAValue) {
+    switch (params_.switchAValue) {
         case (2):
             pitchMultTrill = pitchMult;
-            pitchMultOscA = pitchMult;
             break;
         case (0):
             pitchMultTrill = pitchMult;
@@ -50,20 +50,20 @@ void Voice::UpdateParams(const VoiceParams& params)
             pitchMultOscB = pitchMult;
             break;
     }
-    float baseTrillFreq = pitchMultTrill * fmap(params.trillFreq, MIN_TRILL_FREQ, MAX_TRILL_FREQ, Mapping::LOG);
-    float baseOscAFreq = pitchMultOscA * fmap(params.oscAFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG);
-    float baseOscBFreq = pitchMultOscB * fmap(params.oscBFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG);
+    float baseTrillFreq = pitchMultTrill * fmap(params_.trillFreq, MIN_TRILL_FREQ, MAX_TRILL_FREQ, Mapping::LOG);
+    float baseOscAFreq = pitchMultOscA * fmap(params_.oscAFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG);
+    float baseOscBFreq = pitchMultOscB * fmap(params_.oscBFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG);
     wtOscA.SetFreq(baseOscAFreq);
     wtOscB.SetFreq(baseOscBFreq);
     trillClk.SetFreq(baseTrillFreq);
 
-    trillClk.SetDistance(params.distance);
+    trillClk.SetDistance(params_.distance);
     float trillPeriod = 1.0f / baseTrillFreq;
     float minWidth = 0.2f * trillPeriod;
     float maxWidth = 1.0f * trillPeriod;
-    float baseWidthA = minWidth + params.widthA * (maxWidth - minWidth);
-    float baseWidthB = minWidth + params.widthB * (maxWidth - minWidth);
-    float skew = 0.1 + params.shape * 0.8f;
+    float baseWidthA = minWidth + params_.widthA * (maxWidth - minWidth);
+    float baseWidthB = minWidth + params_.widthB * (maxWidth - minWidth);
+    float skew = 0.1 + params_.shape * 0.8f;
     float skewAtk = skew;
     float skewDec = 1.0f - skew;
     
@@ -78,7 +78,7 @@ void Voice::UpdateParams(const VoiceParams& params)
     trillEnvB.SetTime(ADENV_SEG_DECAY, trillEnvDecB);
 
     hold = false;
-    switch (params.switchBValue) {
+    switch (params_.switchBValue) {
         case (2):
             touchEnv.SetAttackTime(10.0f);
             touchEnv.SetReleaseTime(10.0f);
@@ -92,8 +92,8 @@ void Voice::UpdateParams(const VoiceParams& params)
             break;
     }
 
-    float pdAmtATarget = 0.5f + params.morph * 0.5f * touchEnvLevel;
-    float pdAmtBTarget = 0.5f + params.morph * 0.5f * touchEnvLevel;
+    float pdAmtATarget = 0.5f + params_.morph * 0.5f * touchEnvLevel;
+    float pdAmtBTarget = 0.5f + params_.morph * 0.5f * touchEnvLevel;
     wtOscA.SetPhaseDistortion(pdAmtATarget); //needs smoothing
     wtOscB.SetPhaseDistortion(pdAmtBTarget); //needs smoothing
 
@@ -104,10 +104,6 @@ void Voice::UpdateParams(const VoiceParams& params)
 
 float Voice::Process()
 {
-    // Before you process, update params with new pitch
-    // after stealfade is over
-
-
     if (resetTrillClk) { trillClk.Reset(); resetTrillClk = false; }
 
     auto trillClkVal = trillClk.Process();
@@ -131,17 +127,47 @@ float Voice::Process()
 
     float out = touchEnvLevel * (outA + outB);
 
+    if (stealFade) {
+
+        out *= stealGain;
+
+        if (!fadeUp) {
+            stealGain -= STEAL_STEP;
+            if (stealGain <= 0.0f) {
+                Start(pendingPitch);
+                UpdateParams(params_);
+                fadeUp = true;
+            }
+        }
+
+        if (fadeUp) {
+            stealGain += STEAL_STEP;
+            if (stealGain >= 1.0f) {
+                stealGain = 1.0f;
+                fadeUp = false;
+                stealFade = false;
+            }
+        }
+    }
+
     return out;
 }
 
 
+void Voice::Start(float p) { 
+    pitch = p;
+    resetTrillClk = true;
+    gate = true; 
+}
 
-void Voice::Reset() { resetTrillClk = true; }
-void Voice::SetPitch(float p) { pitch = p; }
-
-void Voice::Start() { gate = true; }
+void Voice::StealFadeStart(float p) {
+    stealFade = true;
+    pendingPitch = p;
+}
 
 void Voice::Release() { gate = false; }
 bool Voice::IsActive() { return touchEnv.IsRunning(); }
-bool Voice::IsInRelease() { return touchEnv.GetCurrentSegment() == ADSR_SEG_RELEASE; }
+bool Voice::IsReleased() { 
+    return gate == false; 
+}
 bool Voice::IsInAttack() { return touchEnv.GetCurrentSegment() == ADSR_SEG_ATTACK; }
