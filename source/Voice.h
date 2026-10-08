@@ -23,7 +23,7 @@ class Voice {
         void Init(float sampleRate, size_t blockSize);
         float Process();
         bool IsActive();
-        bool IsReleased();
+        bool IsInRelease();
         void UpdateParams(const VoiceParams& params);
 
         void Start(float p);
@@ -31,12 +31,13 @@ class Voice {
 
         void Release();
         bool IsInAttack();
-
-        bool hold = false;
+        bool IsGateOn();
+        
+        float GetPitch();
 
         int voiceOwner = -1;
-        int voiceOwnerPrev = -1;
         float touchEnvLevel = 0.0f;
+        bool held = false;
 
 
     private:
@@ -54,15 +55,14 @@ class Voice {
         bool resetTrillClk = false;
         bool gate = false;
         float pitch = 1.0f;
-
         
         // voice steal smoother params
         bool stealFade = false;
         bool fadeUp = false;
         float pendingPitch = 1.0f;
+        bool pendingGate = true;
         float STEAL_STEP;
         float stealGain = 1.0f;
-
 
         //values that need smoothing
         float pdAmtA = 0.5f;

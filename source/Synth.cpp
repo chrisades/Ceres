@@ -52,6 +52,15 @@ void Synth::UpdateParams()
     params.morph = potValue[7];
     params.switchAValue = switchAValue;
     params.switchBValue = switchBValue;
+
+    lastHold = hold;
+    if (params.switchBValue == 1) {
+        hold = true;
+    }
+    else hold = false;
+    if (lastHold == true && hold == false) {
+        ReleaseHeldVoices();
+    }
 }
 
 void Synth::PadTouch(int pad)
@@ -82,48 +91,51 @@ void Synth::VoiceStart(int owner)
     // If called by midi note
     // float pitch = ....
 
-    int v = FindFreeVoice(owner);
+    int v = FindFreeVoice(pitch);
+    
+    if(!hold){
+        if (voice[v].GetPitch() != pitch) {
+            voice[v].StealFadeStart(pitch);
+        }
+        else { 
+            voice[v].Start(pitch); 
+        }
 
-    // if voice must be faded, call fade start
-    // else start voice normally
-    int numActive = 0;
-    for(int v = 0; v < NUM_VOICES; ++v) { if (voice[v].IsActive()) { ++numActive; } }
-    if ((numActive == NUM_VOICES) && (voice[v].voiceOwnerPrev != owner)) { 
-        voice[v].StealFadeStart(pitch);
+        lastPlayedVoice = v;
+        voice[v].voiceOwner = owner;
     }
-    else { 
-        voice[v].Start(pitch); 
-    }
-
-    // voice[v].Start(pitch);
-
-    voice[v].voiceOwner = owner;
-    voice[v].voiceOwnerPrev = -1;
-    lastPlayedVoice = v;
 }
 
 void Synth::VoiceRelease(int owner)
-{
-    for(int v = 0; v < NUM_VOICES; ++v) {
-        if (voice[v].voiceOwner == owner) {
-            voice[v].Release();
-            voice[v].voiceOwnerPrev = owner;
-            voice[v].voiceOwner = -1;
-            return;
+{ 
+    if(!hold) {
+        for(int v = 0; v < NUM_VOICES; ++v) {
+            if (voice[v].voiceOwner == owner) {
+                voice[v].Release();
+                voice[v].voiceOwner = -1;
+            }
         }
     }
 }
 
-int Synth::FindFreeVoice(int owner)
+void Synth::ReleaseHeldVoices()
+{
+    for(int v = 0; v < NUM_VOICES; ++v) {
+        voice[v].Release();
+        voice[v].voiceOwner = -1;
+    }
+}
+
+int Synth::FindFreeVoice(float pitch)
 {
     int v = 0;
     float l = 100.0f;
-    int numUnReleased = 0;
+    int numSustained = 0;
     for(int i = 0; i < NUM_VOICES; ++i) {
 
-        if (voice[i].voiceOwnerPrev == owner && voice[i].voiceOwner == -1) { return i; } // diables unison like behavior
+        if(voice[i].voiceOwner != -1) { ++numSustained; }
 
-        if (!voice[i].IsReleased()) { ++numUnReleased; }
+        if(voice[i].GetPitch() == pitch) { return i; }
 
         if(voice[i].touchEnvLevel < l && !voice[i].IsInAttack()) {
             l = voice[i].touchEnvLevel;
@@ -131,9 +143,7 @@ int Synth::FindFreeVoice(int owner)
         }
     }
 
-    if (numUnReleased == NUM_VOICES) {
-        return lastPlayedVoice;
-    }
+    if(numSustained == NUM_VOICES) { return lastPlayedVoice; }
 
     return v;
 }

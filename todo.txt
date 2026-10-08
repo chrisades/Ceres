@@ -1,32 +1,48 @@
-Fix voice stealing click
--current problems. sometimes when i hold one pad and hit another (in fast env mode)
--it cuts off the held pad
+Fix old bug where simetimes holding one pad and pressing another
+would steal it even if there are other voices available
+(use serial print)
 
+Implement hold
+If hold is true
+pressing a pad holds a voice and doesnt trigger release
+pressing the pad again triggers the release
 
+Implement different phase distortion algorithms
 
+Implement panning 
+-each voice has it's own panning modulated by a sin wave with phase distortion
 
-Implement MIDI Notes
-Fix scales, make your own (fifths+fourths, thirds)
-
-Implement envelope modulation (pd and trill speed)
-
+Make envelope width A and envelope width B controlled by one knob - makes room for a mod depth knob
 Make s30 control freqA and freqB and make s35 detune freqB from A
 
-Implement feedback with different trill params and voices
+Fix scales, make your own (fifths+fourths, thirds)
+Try oscA, oscB, or trill living on different scales
+
+Switch Possibilities:
+*-touchenv (slow / fast / hold)
+-pitch track (trillfreq / both / oscfreq)
+-modulation src (trill envs, touch env, x-feedback)
+-modulation destination (morph, trillfreq, oscfreq)
+-Phase distortion type
+
+Implement x-feedback with different trill params and voices
 Operator modulators are sine wave with phase distortion as well
 Cross phase distortion modulation
 Test cross modulation when trills overlap
 
-Try fixed scales with polyphony, maybe it works
-Try trill frequency living on a different scale
-Try oscA, oscB, and trill living on different scales
-
-Switch Ideas:
--Cross mod (with delay?) / feedback mode, phase distoriton curve
--Phase distortion type
-
-
-Implement noise mix
-
 Other Ideas:
--Envelope mod destinations (trill, freq)
+
+-Implement oscA to oscB mixer (control with shape knob?)
+
+-Implement noise mix?
+- digital noise (bitwise XOR data from oscillators?) through a formant filter with modulated params
+- just digital noise (bitwise XOR data from oscilators or each voice)
+
+-as morph approaches 1, add an effect (reverb? bit crush?)
+
+-Turning widths all the way change the trillEnvs min value to approach 1
+
+
+-Implement MIDI Notes and CC
+-Remove all unused functions and variables
+-make public functions and variables private if only used internally

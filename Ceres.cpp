@@ -2,6 +2,7 @@
 #include "daisysp.h"
 #include "dev/mpr121.h"
 #include "Synth.h"
+#include "Log.h"
 
 const char* USBD_MANUFACTURER_STRING = "ChrisAdes";
 const char* USBD_PRODUCT_STRING_HS = "Ceres";
@@ -60,6 +61,9 @@ int main(void)
     hardware.Init();
     hardware.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
     hardware.SetAudioBlockSize(8);
+
+    HW::hw().setHW(&hardware);
+	HW::hw().startLog();
 
     float sampleRate = hardware.AudioSampleRate();
     size_t blockSize = hardware.AudioBlockSize();
@@ -125,6 +129,7 @@ int main(void)
             synth.potValue[i] = pots[i].Process(); 
 
         synth.UpdateParams();
+        hardware.SetLed(synth.hold);
 
         System::Delay(4);
     }

@@ -24,7 +24,7 @@ void Voice::Init(float sampleRate, size_t blockSize)
     touchEnv.SetReleaseTime(1.0f);
 
     //voice steal de-clicker
-    STEAL_STEP = 1.0f / (0.005f * sampleRate);
+    STEAL_STEP = 1.0f / (0.03f * sampleRate); // try to make the time as low as possible for clicks not to sound
 }
 
 void Voice::UpdateParams(const VoiceParams& params)
@@ -77,7 +77,7 @@ void Voice::UpdateParams(const VoiceParams& params)
     trillEnvB.SetTime(ADENV_SEG_ATTACK, trillEnvAtkB);
     trillEnvB.SetTime(ADENV_SEG_DECAY, trillEnvDecB);
 
-    hold = false;
+    // this whole thing can be outside
     switch (params_.switchBValue) {
         case (2):
             touchEnv.SetAttackTime(10.0f);
@@ -88,18 +88,14 @@ void Voice::UpdateParams(const VoiceParams& params)
             touchEnv.SetReleaseTime(1.0f);
             break;
         case (1):
-            hold = true;
+            //
             break;
     }
 
-    float pdAmtATarget = 0.5f + params_.morph * 0.5f * touchEnvLevel;
-    float pdAmtBTarget = 0.5f + params_.morph * 0.5f * touchEnvLevel;
+    float pdAmtATarget = 0.5f + params_.morph * 0.5f;
+    float pdAmtBTarget = 0.5f + params_.morph * 0.5f;
     wtOscA.SetPhaseDistortion(pdAmtATarget); //needs smoothing
     wtOscB.SetPhaseDistortion(pdAmtBTarget); //needs smoothing
-
-    // if previous pitch is not equal to current pitch 
-    // AND if the touch env is greater than threshold
-    // then activate 
 }
 
 float Voice::Process()
@@ -135,6 +131,7 @@ float Voice::Process()
             stealGain -= STEAL_STEP;
             if (stealGain <= 0.0f) {
                 Start(pendingPitch);
+                gate = pendingGate;
                 UpdateParams(params_);
                 fadeUp = true;
             }
@@ -157,17 +154,28 @@ float Voice::Process()
 void Voice::Start(float p) { 
     pitch = p;
     resetTrillClk = true;
-    gate = true; 
+    gate = true;
 }
+
 
 void Voice::StealFadeStart(float p) {
     stealFade = true;
+    fadeUp = false;
     pendingPitch = p;
+    pendingGate = true;
 }
 
-void Voice::Release() { gate = false; }
-bool Voice::IsActive() { return touchEnv.IsRunning(); }
-bool Voice::IsReleased() { 
-    return gate == false; 
+void Voice::Release() {
+    if (stealFade && !fadeUp) pendingGate = false; // release arrived before the pending start
+    gate = false;
 }
+
+
+float Voice::GetPitch() {
+    return pitch;
+}
+
+bool Voice::IsGateOn() { return gate == true; }
+bool Voice::IsActive() { return touchEnv.IsRunning(); }
+bool Voice::IsInRelease() { return touchEnv.GetCurrentSegment() == ADSR_SEG_RELEASE; }
 bool Voice::IsInAttack() { return touchEnv.GetCurrentSegment() == ADSR_SEG_ATTACK; }
