@@ -1,25 +1,18 @@
-Fix old bug where simetimes holding one pad and pressing another
-would steal it even if there are other voices available
-(use serial print)
+-Implement A-B mix knob 
 
-Implement hold
-If hold is true
-pressing a pad holds a voice and doesnt trigger release
-pressing the pad again triggers the release
-
-Implement different phase distortion algorithms
+-Implement different phase distortion algorithms
 
 Implement panning 
 -each voice has it's own panning modulated by a sin wave with phase distortion
+-depth or speed could be controlled by pad pressure
 
 Make envelope width A and envelope width B controlled by one knob - makes room for a mod depth knob
-Make s30 control freqA and freqB and make s35 detune freqB from A
+Make s30 control freqA and freqB and make s35 detune freqB from freqA
 
-Fix scales, make your own (fifths+fourths, thirds)
 Try oscA, oscB, or trill living on different scales
 
 Switch Possibilities:
-*-touchenv (slow / fast / hold)
+-touchenv (slow / fast / hold)
 -pitch track (trillfreq / both / oscfreq)
 -modulation src (trill envs, touch env, x-feedback)
 -modulation destination (morph, trillfreq, oscfreq)
@@ -42,7 +35,8 @@ Other Ideas:
 
 -Turning widths all the way change the trillEnvs min value to approach 1
 
-
 -Implement MIDI Notes and CC
+-implement oldest voice stealing instead of lastPlayed
 -Remove all unused functions and variables
 -make public functions and variables private if only used internally
+

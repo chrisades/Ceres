@@ -25,7 +25,7 @@ Download the [Binary file](https://github.com/chrisades/Ceres/releases/latest/do
 - P01 - change scale
 - P00/P02 - octave -1/+1
 - P03...P09 - notes
-- P10/P11 - output level -1/+1
+- P10/P11 - output level -/+
 
 ## PREREQUISITES
 - [Daisy Toolchain](https://docs.daisy.audio/tutorials/cpp-dev-env/) (ARM GCC + make)

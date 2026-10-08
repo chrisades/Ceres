@@ -25,15 +25,13 @@ public:
     float potValue[8];
     bool hold = false;
 
-
-
 private:
     Voice voice[NUM_VOICES];
     VoiceParams params;
 
     daisysp::OnePole levelSmoother;
-    float levelTarget = 0.6f;
-    float octave= 1.0f;
+    float levelTarget = 0.4f;
+    float octave= 2.0f;
     int scaleIndex = 0;
     int lastPlayedVoice = 0;
 

@@ -58,9 +58,11 @@ void Synth::UpdateParams()
         hold = true;
     }
     else hold = false;
+    HW::hw().setLed(hold);
     if (lastHold == true && hold == false) {
         ReleaseHeldVoices();
     }
+
 }
 
 void Synth::PadTouch(int pad)
@@ -70,6 +72,8 @@ void Synth::PadTouch(int pad)
 
     if (pad == 0) { octave = fmax(octave * 0.5, 0.125); }
     if (pad == 2) { octave = fmin(octave * 2.0, 8.0); }
+
+    if (pad == 1) { scaleIndex = ((scaleIndex + 1) % NUM_SCALES); }
 
     if (SCALE_MAP[pad] != NULL_PLACE) {
         VoiceStart(pad);
@@ -93,7 +97,12 @@ void Synth::VoiceStart(int owner)
 
     int v = FindFreeVoice(pitch);
     
-    if(!hold){
+    if (hold && (voice[v].voiceOwner != -1)) {
+        voice[v].Release();
+        voice[v].voiceOwner = -1;
+    }
+    
+    else {
         if (voice[v].GetPitch() != pitch) {
             voice[v].StealFadeStart(pitch);
         }
@@ -143,7 +152,12 @@ int Synth::FindFreeVoice(float pitch)
         }
     }
 
-    if(numSustained == NUM_VOICES) { return lastPlayedVoice; }
+    if(numSustained == NUM_VOICES) { 
+        if(hold) {
+            voice[lastPlayedVoice].Release();
+            voice[lastPlayedVoice].voiceOwner = -1;
+        }
+        return lastPlayedVoice; }
 
     return v;
 }

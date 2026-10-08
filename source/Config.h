@@ -3,19 +3,31 @@
 #include "daisysp.h"
 
 // Global Voice Information
-constexpr uint8_t NUM_VOICES = 3;
+constexpr uint8_t NUM_VOICES = 7;
 constexpr float MIN_TRILL_FREQ  = 0.3f;   
 constexpr float MAX_TRILL_FREQ  = 30.0f;  
 constexpr float MIN_OSC_FREQ  = 40.0f;   
 constexpr float MAX_OSC_FREQ  = 1000.0f; 
 
-constexpr int NUM_SCALES = 4;
-constexpr float SCALES[NUM_SCALES][7] = {{0.33371f, 0.5f, 0.66741f, 1.0f, 1.49831f, 2.0f, 2.99661f}, //fifths
-                            {1.0f, 1.12246f, 1.25992f, 1.33484f, 1.49831f, 1.68179f, 2.0f}, //Major
-                            {1.0f, 1.18921f, 1.33484f, 1.49831f, 1.78180f, 2.0f, 2.37841f}, // Pentatonic Minor
-                            {1.0f, 1.18921f, 1.33484f, 1.41421f, 1.49831f, 1.78180f, 2.0f}}; //Blues
+constexpr int NUM_SCALES = 5;
+constexpr float SCALES[NUM_SCALES][7] = {
+    // Fifths and Fourths
+    {0.33371f, 0.5f, 0.66741f, 1.0f, 1.33484f, 1.49831f, 2.0f},
+
+    // Lydian
+    {1.0f, 1.25992f, 1.41421f, 1.49831f, 1.68179f, 1.88775f, 2.0f},
+
+    // D Kurd / Celtic minor
+    {1.0f, 1.49831f, 1.58740f, 1.78180f, 2.0f, 2.24492f, 2.37841f},
+
+    // Hijaz
+    {1.0f, 1.05946f, 1.25992f, 1.33484f, 1.49831f, 1.58740f, 1.78180f},
+
+    // Hirajoshi
+    {1.0f, 1.12246f, 1.18921f, 1.49831f, 1.58740f, 2.0f, 2.24492f}
+};
 constexpr int NULL_PLACE = -1;
-constexpr int SCALE_MAP[12] = {NULL_PLACE, NULL_PLACE, NULL_PLACE, 0, 1, 2, 3, 4, 6, 5, NULL_PLACE, NULL_PLACE};
+constexpr int SCALE_MAP[12] = {NULL_PLACE, NULL_PLACE, NULL_PLACE, 3, 1, 0, 2, 4, 5, 6, NULL_PLACE, NULL_PLACE};
 
 
 // Global Wavetable Information

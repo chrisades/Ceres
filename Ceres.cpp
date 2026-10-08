@@ -129,7 +129,6 @@ int main(void)
             synth.potValue[i] = pots[i].Process(); 
 
         synth.UpdateParams();
-        hardware.SetLed(synth.hold);
 
         System::Delay(4);
     }
