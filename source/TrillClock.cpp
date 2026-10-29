@@ -41,5 +41,5 @@ void TrillClock::SetFreq(float freq)
 }
 
 void TrillClock::SetDistance(float distance){
-    distance_ = TWOPI_F * fclamp(distance, 0.0f, 1.0f);
+    distance_ = TWOPI_F * fclamp(distance, 0.01f, 1.0f);
 }

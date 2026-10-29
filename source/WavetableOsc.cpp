@@ -10,17 +10,33 @@ float WavetableOsc::Process()
 {
     index = std::fmod(index, fTABLE_SIZE);
 
-    phase = index * inverseTABLE_SIZE;; 
-    distortedPhase = Distort(phase);
+    phase = index * inverseTABLE_SIZE;
+
+    switch(mode) {
+        case (PD_MODE_1): 
+            distortedPhase = ResoDistort(phase);
+            break;
+        
+        case (PD_MODE_2): 
+            distortedPhase = StepDistort(phase);
+            break;
+    
+        case (PD_MODE_3): 
+            distortedPhase = TriDistort(phase);
+            break;
+
+        default:
+            distortedPhase = StepDistort(phase);
+    }
+
     savedIndex = index;
-    index = distortedPhase * fTABLE_SIZE; //calculate distorted index before interpolation
+    index = distortedPhase * fTABLE_SIZE;
     // const float sample = InterpolateHermite4pt3oX(index);
     const float sample = LinearInterpolation(index);
-    index = savedIndex + indexIncrement; // use un-distorted index to continue oscillating
+    index = savedIndex + indexIncrement;
 
     return amp * sample;
 }
-    
 
 /** Sets the frequency of the oscillator by increasing
  * or decreasing the increment of the index
@@ -35,15 +51,15 @@ void WavetableOsc::SetFreq(float freq_)
  */
 void WavetableOsc::SetAmp(float amp_)
 {
-    amp = amp_ * amp_;
+    amp = amp_;
 }
 
 /** Sets phase distortion amount
- * accepts values between 0 and 1 (change to -1 to 1)
+ * accepts values between 0 and 1
  */
 void WavetableOsc::SetPhaseDistortion(float pd_)
 {
-    pd = 0.05f + pd_ * 0.90f;
+    pd = pd_;
 }
 
 /** Stops the oscillator by setting
@@ -69,24 +85,131 @@ bool WavetableOsc::IsPlaying() const
 
 // /** Computes the distorted phase
 //  */
-float WavetableOsc::Distort(float phase_) const //knee
+float WavetableOsc::KneeDistortX(float phase_)
 {
-    if (phase_ < pd) {
-        return (0.5f / pd) * phase_; 
+    // pd goes from 0 to 1
+    float a = 0.05f + pd * 0.90f;
+    //float a = 0.5f + pd * 0.45f;
+
+    if (phase_ < a) {
+        return (0.5f / a) * phase_; 
     }
     else {
-        return 1.0f - 0.5f * (phase_ - 1.0f) / (pd - 1.0f);
+        return 1.0f - 0.5f * (phase_ - 1.0f) / (a - 1.0f);
     }
 }
-// float WavetableOsc::Distort(float phase_) const //knee
-// {
-//     if (phase_ < pd) {
-//         return (pd / 0.5f) * phase_; 
-//     }
-//     else {
-//         return -2.0f * (pd - 1.0f) * (phase_ - 1.0f) + 1.0f;
-//     }
-// }
+
+float WavetableOsc::KneeDistortY(float phase_)
+{
+    // pd goes from 0 to 1
+    float b = 0.5f + pd * 0.5f;
+
+    if (phase_ < 0.5f) {
+        return (b / 0.5f) * phase_; 
+    }
+    else {
+        return 2.0f * (1.0f - b) * (phase_ - 1.0f) + 1.0f;
+    }
+}
+
+float WavetableOsc::KneeDistortXY(float phase_)
+{
+    // pd goes from 0 to 1
+    float c = 0.05f + pd * 0.90f;
+
+    if (c < 0.5f) {
+        if (phase_ < 0.5f) {
+            return (c / 0.5f) * phase_; 
+        }
+        else {
+            return 2.0f * (1.0f - c) * (phase_ - 1.0f) + 1.0f;
+        }
+    }
+    else {
+        if (phase_ < c) {
+            return (0.5f / c) * phase_; 
+        }
+        else {
+            return 1.0f - 0.5f * (phase_ - 1.0f) / (c - 1.0f);
+        }
+    }
+}
+
+float WavetableOsc::ResoDistort(float phase_)
+{
+    // pd goes from 0 to 1
+    float N = 1.0f + pd * 30.0f;
+    float x = N * phase_;
+
+    SetAmp(1.0f - phase_);
+
+    return x - floorf(x);
+}
+
+float WavetableOsc::TriDistort(float phase_)
+{
+    SetAmp(1.0f);
+
+    float c = 0.5f + pd * 0.45f;
+    float a = 1.0f - c;
+
+    float up   = phase_ * a;           
+    float down = (1.0f - phase_) * c; 
+
+    return fminf(up, down) / (c * a);
+}
+
+float WavetableOsc::StepDistort(float phase_)
+{
+    SetAmp(1.0f);
+    // float a = 0.5f - pd * 0.45f;
+    // if (phase_ >= 0.0f && phase_ < a * 0.4f) {
+    //     return phase_ * 0.5f / a;
+    // }
+    // else if (phase_ >= a * 0.4f && phase_ < 0.2f) {
+    //     return 0.2f;
+    // }
+    // else if (phase_ >= 0.2f && phase_ < (a * 0.4f + 0.2f)) {
+    //     return (5.0f * phase_ + 2.0f * a - 1.0f) / (10.0f * a);
+    // }
+    // else if (phase_ >= (a * 0.4f + 0.2f) && phase_ < 0.4f) {
+    //     return 0.4f;
+    // }
+    // else if (phase_ >= 0.4f && phase_ < (a * 0.4f + 0.4f)) {
+    //     return (5.0f * phase_ + 4.0f * a - 2.0f) / (10.0f * a);
+    // }
+    // else if (phase_ >= (a * 0.4f + 0.4f) && phase_ < 0.6f) {
+    //     return 0.6f;
+    // }
+    // else if (phase_ >= 0.6f && phase_ < (a * 0.4f + 0.6f)) {
+    //     return (5.0f * phase_ + 6.0f * a - 3.0f) / (10.0f * a);
+    // }
+    // else if (phase_ >= (a * 0.4f + 0.6f) && phase_ < 0.8f) {
+    //     return 0.8f;
+    // }
+    // else if (phase_ >= 0.8f && phase_ < (a * 0.4f + 0.8f)) {
+    //     return (5.0f * phase_ + 8.0f * a - 4.0f) / (10.0f * a);
+    // }
+    // else {
+    //     return 1.0f;
+    // }
+
+    const float numSteps = 6.0f; //
+    const float invNumSteps = 1.0f / numSteps;
+
+    const float a = 0.5f - pd * 0.45f;
+    const float x = phase_ * numSteps;
+    const float k = std::floor(x);         
+    const float frac = x - k;             
+    const float ramp = std::fmin(frac / (2.0f * a), 1.0f);
+
+    return invNumSteps * (k + ramp);
+}
+
+void WavetableOsc::SetPDMode(int mode_)
+{
+    mode = mode_;
+}
 
 //Hermite Interpolation
 float WavetableOsc::InterpolateHermite4pt3oX(float index_) const

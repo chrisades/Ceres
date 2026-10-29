@@ -1,42 +1,27 @@
--Implement A-B mix knob 
 
--Implement different phase distortion algorithms
+-Smooth MorphMode switching
 
-Implement panning 
--each voice has it's own panning modulated by a sin wave with phase distortion
--depth or speed could be controlled by pad pressure
+-Chaotic Speech Filter on/off P00?
 
-Make envelope width A and envelope width B controlled by one knob - makes room for a mod depth knob
-Make s30 control freqA and freqB and make s35 detune freqB from freqA
+-Smooth RungOuts?
 
-Try oscA, oscB, or trill living on different scales
+-Think about trill env shape
 
-Switch Possibilities:
--touchenv (slow / fast / hold)
--pitch track (trillfreq / both / oscfreq)
--modulation src (trill envs, touch env, x-feedback)
--modulation destination (morph, trillfreq, oscfreq)
--Phase distortion type
+-Turning widths all the way to 1 changes the trillEnvs min value to approach 1?
+-Set Frequency at Trill Clk Triggers in Voice::Process()
+-Perhaps add a smoother to fmods if needed
 
-Implement x-feedback with different trill params and voices
-Operator modulators are sine wave with phase distortion as well
-Cross phase distortion modulation
-Test cross modulation when trills overlap
+-Audio In:
+envelope follower that modulates mod-depth and ring modulates with pre effect output
 
-Other Ideas:
+-Add a high requency shelf to cool down high end
+-Add a low shelf to boost low end
 
--Implement oscA to oscB mixer (control with shape knob?)
-
--Implement noise mix?
-- digital noise (bitwise XOR data from oscillators?) through a formant filter with modulated params
-- just digital noise (bitwise XOR data from oscilators or each voice)
-
--as morph approaches 1, add an effect (reverb? bit crush?)
-
--Turning widths all the way change the trillEnvs min value to approach 1
+-Add a limiter?
 
 -Implement MIDI Notes and CC
--implement oldest voice stealing instead of lastPlayed
 -Remove all unused functions and variables
--make public functions and variables private if only used internally
+-implement oldest voice stealing instead of lastPlayed
+
+-Lower aliasing?
 

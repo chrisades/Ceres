@@ -3,9 +3,14 @@
 #include "daisysp.h"
 #include "Config.h"
 
+enum {
+    PD_MODE_1,
+    PD_MODE_2,
+    PD_MODE_3
+};
 
 /** Wavetable Oscillator that uses a referenced wavetable array
- * and renders an interpolated sample at a given frequency
+ * and renders an interpolated sample at a given frequencyhg
  */
 class WavetableOsc 
 {
@@ -40,6 +45,8 @@ public:
     void SetAmp(float amp_);
     void SetPhaseDistortion(float pd_);
 
+    void SetPDMode(int mode_);
+
     void Stop();
     bool IsPlaying() const;
 
@@ -60,10 +67,17 @@ private:
     float savedIndex;
     float phase;
     float pd;
+    int mode = PD_MODE_1;
 
     float k1;
 
     float InterpolateHermite4pt3oX(float index_) const;
     float LinearInterpolation(float index_) const;
-    float Distort(float phase_) const;
+
+    float KneeDistortX(float phase_);
+    float KneeDistortY(float phase_);
+    float KneeDistortXY(float phase_);
+    float ResoDistort(float phase_);
+    float TriDistort(float phase_);
+    float StepDistort(float phase_);
 };

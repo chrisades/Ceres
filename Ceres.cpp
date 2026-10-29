@@ -21,29 +21,8 @@ AnalogControl pots[8];
 Synth synth;
 // MidiUsbHandler midi;
 
-// Touch sensor thresholds
 constexpr uint8_t PAD_TOUCH_THRESH = 12;
 constexpr uint8_t PAD_RELEASE_THRESH = 6;
-// Pressure tuning
-constexpr float PRESS_MAX_DELTA    = 100.0f; // counts past baseline that equal full pressure (1.0), tune for your pads
-constexpr float PRESS_SMOOTHING   = 0.4f;  // 0 to 1, higher = faster response, lower = smoother
-constexpr bool  PRESS_MODE = true; // true squares the curve for finer control at light touch
-static_assert(PRESS_MAX_DELTA > PAD_TOUCH_THRESH, "PRESS_MAX_DELTA must be larger than PAD_TOUCH_THRESH");
-// Estimate how hard a pad is pressed, 0 to 1.
-float ReadPadPressure(int pad)
-{
-    int32_t filtered = mpr.FilteredData(pad) & 0x03FF; 
-    int32_t baseline = mpr.BaselineData(pad);          
-    int32_t delta    = baseline - filtered;            
-
-    // Map touch threshold .. max delta onto 0 .. 1
-    float norm = (float)(delta - PAD_TOUCH_THRESH) / (PRESS_MAX_DELTA - PAD_TOUCH_THRESH);
-    if(norm < 0.0f) norm = 0.0f;
-    if(norm > 1.0f) norm = 1.0f;
-
-    return PRESS_MODE ? (norm * norm) : norm;
-}
-
 
 bool hold = false;
 
@@ -60,10 +39,10 @@ int main(void)
 {
     hardware.Init();
     hardware.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
-    hardware.SetAudioBlockSize(8);
+    hardware.SetAudioBlockSize(24);
 
     HW::hw().setHW(&hardware);
-	HW::hw().startLog();
+	// HW::hw().startLog();
 
     float sampleRate = hardware.AudioSampleRate();
     size_t blockSize = hardware.AudioBlockSize();
@@ -101,16 +80,6 @@ int main(void)
         for(int i = 0; i < 12; i++) {
             bool isTouched  = state & (1 << i);
             bool wasTouched = prevPadState & (1 << i);
-
-            if(isTouched) {
-                float target = ReadPadPressure(i);
-                if(wasTouched)
-                    synth.padPressure[i] += (target - synth.padPressed[i]) * PRESS_SMOOTHING;
-                else
-                    synth.padPressure[i] = target;
-            } else {
-                synth.padPressure[i] = 0.0f;
-            }
 
             if(isTouched && !wasTouched) {
                 OnPadTouch(i);

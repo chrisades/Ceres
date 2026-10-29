@@ -3,6 +3,7 @@
 #include "Config.h"
 #include "Voice.h"
 #include "Log.h"
+#include "Delay.h"
 
 class Synth {
 public:
@@ -19,22 +20,32 @@ public:
     void UpdateParams();
 
     bool  padPressed[12];
-    float padPressure[12];
     int   switchAValue;
     int   switchBValue;
     float potValue[8];
-    bool hold = false;
 
 private:
     Voice voice[NUM_VOICES];
     VoiceParams params;
 
-    daisysp::OnePole levelSmoother;
-    float levelTarget = 0.4f;
-    float octave= 2.0f;
-    int scaleIndex = 0;
+    Delay delay1L;
+    Delay delay2L;
+    Delay delay1R;
+    Delay delay2R;
+    float delTime1 = 1.0f;
+    float delTime2 = 1.0f;
+    float delSmoothCoef;
+
+    CrossFade delXFade;
+    float delXFadeAmt = 0.0f;
+
+
+    float octave = 1.0f;
+    uint8_t octaveIndex = 0;
+    int padScaleIndex = 0;
     int lastPlayedVoice = 0;
 
+    bool hold = false;
     bool lastHold = false;
 
     void ReleaseHeldVoices();
