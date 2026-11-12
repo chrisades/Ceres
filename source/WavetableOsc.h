@@ -39,6 +39,7 @@ public:
     }
 
     float Process();
+    float ProcessWithoutPD();
     float GetFreq() const;
 
     void SetFreq(float freq_);

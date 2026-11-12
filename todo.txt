@@ -1,7 +1,11 @@
 
 -Smooth MorphMode switching
 
--Chaotic Speech Filter on/off P00?
+-P00 : Pitch Swap Activate
+-P01 : hold
+-P02 : Ring Mod Activate
+
+-Switch A : Envelope shapes
 
 -Smooth RungOuts?
 
@@ -22,6 +26,3 @@ envelope follower that modulates mod-depth and ring modulates with pre effect ou
 -Implement MIDI Notes and CC
 -Remove all unused functions and variables
 -implement oldest voice stealing instead of lastPlayed
-
--Lower aliasing?
-

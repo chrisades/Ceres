@@ -64,6 +64,8 @@ struct VoiceParams {
     uint8_t morphMode = PD_MODE_1;
     uint8_t modMode = MOD_MODE_1;
     uint8_t trillTrigMode = TRILL_TRIG_MODE_1;
+    float modMult = 1.0f;
+    bool pitchSwap = false;
 };
 
 class Voice {
@@ -93,9 +95,6 @@ class Voice {
     private:
         WavetableOsc oscA{TABLES.SIN_TABLE};
         WavetableOsc oscB{TABLES.SIN_TABLE};
-        WavetableOsc subOscA{TABLES.SIN_TABLE};
-        WavetableOsc subOscB{TABLES.SIN_TABLE};
-        WavetableOsc trillLfo{TABLES.SIN_TABLE};
 
         AdEnv trillEnvA;
         AdEnv trillEnvB;
@@ -116,7 +115,7 @@ class Voice {
         float panR = 0.707f;
         float panLTarget = 0.707f;
         float panRTarget = 0.707f;
-        float panSmoothCoef;
+        float slowSmoothCoef;
 
         // VowelFilter vFilt;
         // int phoneme1;
@@ -158,12 +157,7 @@ class Voice {
         float stealGain = 1.0f;
 
         float oscAValue = 0.0f;
-        float oscBValue = 0.0f;
-        float trillLfoValue = 0.0f;
-        float subOscAValue = 0.0f;
-        float subOscBValue = 0.0f;
-        float xLfoValue = 0.0f;
-        float xLfoValueSmooth = 0.0f;        
+        float oscBValue = 0.0f;    
 
         float mA = 0.0f;
         float mB = 0.0f;
@@ -174,7 +168,6 @@ class Voice {
         float xFadeFXAmt = 0.5f;
         float modDepth = 0.0f;
         float smoothCoef;
-        float xLfoSmoothCoef;
 
         float baseOscAFreq = 1.0f;
         float baseOscBFreq = 1.0f;;

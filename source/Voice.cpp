@@ -10,9 +10,6 @@ void Voice::Init(float sampleRate, size_t blockSize)
 {
     oscA.Init(sampleRate);
     oscB.Init(sampleRate);
-    subOscA.Init(sampleRate);
-    subOscB.Init(sampleRate);
-    trillLfo.Init(sampleRate);
 
     trillClk.Init(2.0f, sampleRate);
     panClk.Init(1.0f, sampleRate);
@@ -42,8 +39,7 @@ void Voice::Init(float sampleRate, size_t blockSize)
 
     //Smooth Coeffs
     smoothCoef = 1.0f / (0.05f * sampleRate);
-    panSmoothCoef = 1.0f / (0.3f * sampleRate);
-    xLfoSmoothCoef = 1.0f / (0.003f * sampleRate);
+    slowSmoothCoef = 1.0f / (0.3f * sampleRate);
 }
 
 void Voice::UpdateParams(const VoiceParams& params)
@@ -91,30 +87,26 @@ void Voice::UpdateParams(const VoiceParams& params)
             rungModB = exp2f((rungOutB) * -4.0f * modDepth);
             fmodA = exp2f((oscBValue * params_.widthB) * 4.0f * modDepth);
             fmodB = exp2f((oscAValue * params_.widthA) * -4.0f * modDepth);
-            fmodTrill = exp2f((rungOutA + rungOutB) * 2.0f * modDepth);
+            fmodTrill = exp2f((rungOutA + rungOutB) * 2.0f * modDepth * modDepth);
             widthAMod = 0.0f;
             widthBMod = 0.0f;
             break;
     }
 
-    baseTrillFreq =  pitchMultTrill * fmap(params_.trillFreq, MIN_TRILL_FREQ, MAX_TRILL_FREQ, Mapping::LOG);
-    baseOscAFreq = pitchMultOscA * fmap(params_.oscAFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG);
-    baseOscBFreq = pitchMultOscB * fmap(params_.oscBFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG);
 
-    // // //LFO and Subs
-    // trillLfo.SetFreq(baseTrillFreq);
-    // trillLfo.SetPDMode(params_.morphMode);
-    // //trillLfo.SetPhaseDistortion(morph);
-    // trillLfoValue = trillLfo.Process();
-    // subOscA.SetFreq(baseOscAFreq);
-    // subOscA.SetPDMode(params_.morphMode);
-    // subOscA.SetPhaseDistortion(morph); 
-    // subOscAValue = subOscA.Process();
-    // subOscB.SetFreq(baseOscBFreq);
-    // subOscB.SetPDMode(params_.morphMode);
-    // subOscB.SetPhaseDistortion(morph);
-    // subOscBValue = subOscB.Process();
-    // xLfoValue = 0.80f * trillLfoValue + 0.1f * subOscAValue + 0.1f * subOscBValue; //(XOR16f(subOscAValue, subOscBValue));
+    baseTrillFreq =  pitchMultTrill * fmap(params_.trillFreq, MIN_TRILL_FREQ, MAX_TRILL_FREQ, Mapping::LOG);
+
+    // baseOscAFreq = pitchMultOscA * fmap(params_.oscAFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG);
+    // baseOscBFreq = pitchMultOscB * fmap(params_.oscBFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG);
+
+    if (params_.pitchSwap) {
+        fonepole(baseOscAFreq, 0.5f * pitchMultOscB * fmap(params_.oscBFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG), 8.0f * smoothCoef);
+        fonepole(baseOscBFreq, 0.5f * pitchMultOscA * fmap(params_.oscAFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG), 8.0f * smoothCoef);
+    }
+    else {
+        fonepole(baseOscAFreq, pitchMultOscA * fmap(params_.oscAFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG), 32.0f * smoothCoef);
+        fonepole(baseOscBFreq, pitchMultOscB * fmap(params_.oscBFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG), 32.0f * smoothCoef);
+    }
 
     oscA.SetFreq(fmodA * rungModA * baseOscAFreq); 
     oscA.SetPDMode(params_.morphMode);
@@ -197,7 +189,6 @@ float Voice::Process()
     }
     lastTrillClkVal = trillClkVal;
     if (resetTrillClk) { resetTrillClk = false; }
-    
 
     auto panClkVal = panClk.Process();
     if ((panClkVal == 1) && lastPanClkVal == 0) {
@@ -215,10 +206,10 @@ float Voice::Process()
 
     }
     lastPanClkVal = panClkVal;
-    fonepole(panL, panLTarget, panSmoothCoef);
-    fonepole(panR, panRTarget, panSmoothCoef);
+    fonepole(panL, panLTarget, slowSmoothCoef);
+    fonepole(panR, panRTarget, slowSmoothCoef);
 
-    fonepole(modDepth, fclamp(1.25f * params_.modDepth, 0.0f, 1.0f), smoothCoef);
+    fonepole(modDepth, fclamp(1.25f * params_.modDepth, 0.0f, 1.0f) * params_.modMult, smoothCoef);
     fonepole(morph, params_.morph, smoothCoef);
 
     //fonepole(vowelMorph, rungOutPan, smoothCoef);
@@ -241,6 +232,7 @@ float Voice::Process()
             morphModB = modDepth * 0.0f;
             break;
     }
+
     mA = fclamp(morph + morphModA, 0.0f, 1.0f);
     mB = fclamp(morph + morphModB, 0.0f, 1.0f);
     oscA.SetPhaseDistortion(mA);
@@ -248,6 +240,7 @@ float Voice::Process()
 
     oscAValue = oscA.Process();
     oscBValue = oscB.Process();
+
     float outA = trillEnvALevel * oscAValue;
     float outB = trillEnvBLevel * oscBValue;
 

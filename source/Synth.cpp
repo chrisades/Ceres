@@ -89,18 +89,35 @@ void Synth::UpdateParams()
     params.trillFreq = potValue[3];
     params.morph = potValue[7];
 
+    if (padPressed[0])
+    { params.modMult = -1.0f; }
+    else { params.modMult = 1.0f; }
+
+    if (padPressed[2])
+    { params.pitchSwap = true; }
+    else { params.pitchSwap = false; }
+
+    if (padPressed[10])
+    { params.trillTrigMode = TRILL_TRIG_MODE_2; }
+    else { params.trillTrigMode = TRILL_TRIG_MODE_1; }
+
+    if (padPressed[11])
+    { params.trackingMode = TRACKING_BOTH; }
+    else { params.trackingMode = TRACKING_OSC; }
+
+    params.touchEnvAtk = 15.0f;
+    params.touchEnvRel = 15.0f;
+    params.shape = 0.5f;
+
     switch (switchAValue) {
         case (2):
             params.modMode = MOD_MODE_1;
-            // params.fxAmt = 0.0f;
             break;
         case (0):
             params.modMode = MOD_MODE_2;
-            // params.fxAmt = 0.5f;
             break;
         case (1):
             params.modMode = MOD_MODE_3;
-            // params.fxAmt = 1.0f;
             break;
     }
 
@@ -115,63 +132,37 @@ void Synth::UpdateParams()
             params.morphMode = PD_MODE_3;
             break;
     }
-
-    switch (params.trillEnvMode) {
-        case (TRILL_ENV_SHAPE_1):
-            params.shape = 0.0f;
-            break;
-        case (TRILL_ENV_SHAPE_2):
-            params.shape = 0.5f;
-            break;
-        case (TRILL_ENV_SHAPE_3):
-            params.shape = 1.0f;
-            break;
-    }
-
-    lastHold = hold;
-    switch (params.touchEnvMode) { // decide attack and release for touch env
-        case (TOUCH_ENV_SLOW):
-            params.touchEnvAtk = 15.0f;
-            params.touchEnvRel = 15.0f;
-            hold = false;
-            break;
-        case (TOUCH_ENV_FAST):
-            params.touchEnvAtk = 0.5f;
-            params.touchEnvRel = 1.0f;
-            hold = false;
-            break;
-        case (TOUCH_ENV_HOLD):
-            params.touchEnvAtk = 10.0f;
-            params.touchEnvRel = 1.0f;
-            hold = true;
-            break;
-    }
-    HW::hw().setLed(hold);
-    if (lastHold == true && hold == false) {
-        ReleaseHeldVoices();
-    }
-
 }
 
 void Synth::PadTouch(int pad)
 {
-    if (pad == 10) { 
-        //params.trillEnvMode = ((params.trillEnvMode + 1) % NUM_TRILL_ENV_MODES); 
-        params.trillTrigMode = ((params.trillTrigMode + 1) % NUM_TRILL_TRIG_MODES);
-    }
+    // if (pad == 10) { 
+    //     //params.trillEnvMode = ((params.trillEnvMode + 1) % NUM_TRILL_ENV_MODES); 
+    //     // params.trillTrigMode = ((params.trillTrigMode + 1) % NUM_TRILL_TRIG_MODES);
+    // }
 
-    if (pad == 11) { params.touchEnvMode = ((params.touchEnvMode + 1) % NUM_TOUCH_ENV_MODES); }
+    // if (pad == 11) { 
+    //     //params.touchEnvMode = ((params.touchEnvMode + 1) % NUM_TOUCH_ENV_MODES); 
+    // }
 
     if (pad == 0) { 
-        octaveIndex = (octaveIndex + 1) % 4;
-        octave = exp2f(static_cast<float>(octaveIndex)); 
+        // octaveIndex = (octaveIndex + 1) % 4;
+        // octave = exp2f(static_cast<float>(octaveIndex)); 
     }
-    //if (pad == 0) { octave = fmax(octave * 0.5, 0.125); }
-    //if (pad == 2) { octave = fmin(octave * 2.0, 8.0); }  
 
-    if (pad == 1) { padScaleIndex = ((padScaleIndex + 1) % NUM_PAD_SCALES); }
+    if (pad == 1) { 
+        // padScaleIndex = ((padScaleIndex + 1) % NUM_PAD_SCALES); 
+        lastHold = hold;
+        hold = !hold;
+        HW::hw().setLed(hold);
+        if (lastHold == true && hold == false) {
+            ReleaseHeldVoices();
+        }
+    }
 
-    if (pad == 2) { params.trackingMode = ((params.trackingMode + 1) % NUM_TRACKING_MODES); }
+    if (pad == 2) { 
+        // params.trackingMode = ((params.trackingMode + 1) % NUM_TRACKING_MODES); 
+    }
 
     if (PAD_SCALE_MAP[pad] != NULL_PLACE) {
         VoiceStart(pad);

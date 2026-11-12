@@ -38,6 +38,16 @@ float WavetableOsc::Process()
     return amp * sample;
 }
 
+float WavetableOsc::ProcessWithoutPD()
+{
+    index = std::fmod(index, fTABLE_SIZE);
+
+    const float sample = LinearInterpolation(index);
+    index += indexIncrement;
+
+    return sample;
+}
+
 /** Sets the frequency of the oscillator by increasing
  * or decreasing the increment of the index
  */
