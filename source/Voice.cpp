@@ -1,11 +1,5 @@
 #include "Voice.h"
 
-inline float quantizeFreq12TET(float hz, float a4 = 440.0f) {
-    hz = std::max(hz, 1e-3f);                           
-    const float semis = 12.0f * std::log2(hz / a4);     
-    return a4 * std::exp2(std::round(semis) / 12.0f);
-}
-
 void Voice::Init(float sampleRate, size_t blockSize)
 {
     oscA.Init(sampleRate);
@@ -25,21 +19,26 @@ void Voice::Init(float sampleRate, size_t blockSize)
     trillEnvB.SetCurve(0.0f);
 
     touchEnv.Init(sampleRate, blockSize);
-    touchEnv.SetAttackTime(0.5f);
-    touchEnv.SetDecayTime(0.2f);
+    touchEnv.SetAttackTime(15.0f);
+    touchEnv.SetDecayTime(0.0f);
     touchEnv.SetSustainLevel(1.0f);
-    touchEnv.SetReleaseTime(1.0f);
+    touchEnv.SetReleaseTime(15.0f);
 
     xFade.Init(CROSSFADE_CPOW);
-
-    xFadeFX.Init(CROSSFADE_EXP);
+    xFadeFreqs.Init(CROSSFADE_EXP);
+    xFadeFilt.Init(CROSSFADE_EXP);
 
     //voice steal de-clicker
     STEAL_STEP = 1.0f / (0.03f * sampleRate);
 
     //Smooth Coeffs
     smoothCoef = 1.0f / (0.05f * sampleRate);
-    slowSmoothCoef = 1.0f / (0.3f * sampleRate);
+    mixSmoothCoef = 1.0f / (0.0001f * sampleRate);
+    panSmoothCoef = 1.0f / (0.3f * sampleRate);
+    xFadeSmoothCoef = 1.0f / (0.005f * sampleRate);
+
+    filt.Init(sampleRate);
+    filt.SetGains(20.0f, 20.0);
 }
 
 void Voice::UpdateParams(const VoiceParams& params)
@@ -93,27 +92,28 @@ void Voice::UpdateParams(const VoiceParams& params)
             break;
     }
 
-
     baseTrillFreq =  pitchMultTrill * fmap(params_.trillFreq, MIN_TRILL_FREQ, MAX_TRILL_FREQ, Mapping::LOG);
+    baseOscAFreq = pitchMultOscA * fmap(params_.oscAFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG);
+    baseOscBFreq = pitchMultOscB * fmap(params_.oscBFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG);
 
-    // baseOscAFreq = pitchMultOscA * fmap(params_.oscAFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG);
-    // baseOscBFreq = pitchMultOscB * fmap(params_.oscBFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG);
-
+    float xFadeFreqsPosAmt = 0.0f;
     if (params_.pitchSwap) {
-        fonepole(baseOscAFreq, 0.5f * pitchMultOscB * fmap(params_.oscBFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG), 8.0f * smoothCoef);
-        fonepole(baseOscBFreq, 0.5f * pitchMultOscA * fmap(params_.oscAFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG), 8.0f * smoothCoef);
+        xFadeFreqsPosAmt = 1.0f;
     }
-    else {
-        fonepole(baseOscAFreq, pitchMultOscA * fmap(params_.oscAFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG), 32.0f * smoothCoef);
-        fonepole(baseOscBFreq, pitchMultOscB * fmap(params_.oscBFreq, MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG), 32.0f * smoothCoef);
-    }
+    fonepole(xFadeFreqsPos, xFadeFreqsPosAmt, xFadeSmoothCoef);
+    xFadeFreqs.SetPos(xFadeFreqsPos);
 
-    oscA.SetFreq(fmodA * rungModA * baseOscAFreq); 
+    float baseOscBFreqHalf = baseOscBFreq * 0.5f;
+    float xFadeFreqA = xFadeFreqs.Process(baseOscAFreq, baseOscBFreqHalf);
+    oscA.SetFreq(fmodA * rungModA * xFadeFreqA); 
     oscA.SetPDMode(params_.morphMode);
-    oscB.SetFreq(fmodB * rungModB * baseOscBFreq);
-    oscB.SetPDMode(params_.morphMode);
-    trillClk.SetFreq(fmodTrill * baseTrillFreq);
 
+    float baseOscAFreqHalf = baseOscAFreq * 0.5f;
+    float xFadeFreqB = xFadeFreqs.Process(baseOscBFreq, baseOscAFreqHalf);
+    oscB.SetFreq(fmodB * rungModB * xFadeFreqB);
+    oscB.SetPDMode(params_.morphMode);
+
+    trillClk.SetFreq(fmodTrill * baseTrillFreq);
     trillClk.SetDistance(params_.distance);
     float trillPeriod = 1.0f / baseTrillFreq;
     float minWidth = 0.2f * trillPeriod;
@@ -143,13 +143,19 @@ void Voice::UpdateParams(const VoiceParams& params)
     touchEnv.SetAttackTime(params_.touchEnvAtk);
     touchEnv.SetReleaseTime(params_.touchEnvRel);
 
-    fonepole(xFadeAmt, params_.distance, smoothCoef);
+    fonepole(xFadeAmt, params_.distance, mixSmoothCoef);
     xFade.SetPos(xFadeAmt);
 
+    fonepole(modMult, params_.modMult, xFadeSmoothCoef);
+
+    fonepole(xFadeFiltAmt, params_.filterAmtTarget, 0.14f * xFadeSmoothCoef);
+    xFadeFilt.SetPos(xFadeFiltAmt);
+    filt.SetBand1(1.5f * xFadeFreqA, fmap(params_.widthA, 0.5f, 7.0f, Mapping::LINEAR));
+    filt.SetBand2(1.5f * xFadeFreqB, fmap(params_.widthB, 0.5f, 7.0f, Mapping::LINEAR));
 }
 
 
-float Voice::Process()
+float Voice::Process(float noise)
 {
 
     if (resetTrillClk) { trillClk.Reset(); }
@@ -194,25 +200,17 @@ float Voice::Process()
     if ((panClkVal == 1) && lastPanClkVal == 0) {
         runglerPan.setThreshold(0.0f);
         runglerPan.shift(0.5f * (oscAValue + oscBValue));
-        // if (runglerPan.getFirstBit()) { 
-        //     rungOutPan = runglerPan.getOutput();
-        //     panLTarget = QuarterSine(1.0f - rungOutPan);
-        //     panRTarget = QuarterSine(rungOutPan);
-        // }
-
         rungOutPan = runglerPan.getOutput();
         panLTarget = QuarterSine(1.0f - rungOutPan);
         panRTarget = QuarterSine(rungOutPan);
-
     }
     lastPanClkVal = panClkVal;
-    fonepole(panL, panLTarget, slowSmoothCoef);
-    fonepole(panR, panRTarget, slowSmoothCoef);
+    fonepole(panL, panLTarget, panSmoothCoef);
+    fonepole(panR, panRTarget, panSmoothCoef);
 
-    fonepole(modDepth, fclamp(1.25f * params_.modDepth, 0.0f, 1.0f) * params_.modMult, smoothCoef);
+    fonepole(modDepth, params_.modDepth * modMult, smoothCoef);
+
     fonepole(morph, params_.morph, smoothCoef);
-
-    //fonepole(vowelMorph, rungOutPan, smoothCoef);
 
     touchEnvLevel = touchEnv.Process(gate);
     trillEnvALevel = trillEnvA.Process();
@@ -232,7 +230,6 @@ float Voice::Process()
             morphModB = modDepth * 0.0f;
             break;
     }
-
     mA = fclamp(morph + morphModA, 0.0f, 1.0f);
     mB = fclamp(morph + morphModB, 0.0f, 1.0f);
     oscA.SetPhaseDistortion(mA);
@@ -243,9 +240,11 @@ float Voice::Process()
 
     float outA = trillEnvALevel * oscAValue;
     float outB = trillEnvBLevel * oscBValue;
+    float oscMix = xFade.Process(outA, outB);
 
-    float mix = xFade.Process(outA, outB);
-
+    float filtered = 0.1f * XOR16f(oscAValue, oscBValue) + 0.9f * filt.Process(noise);
+    float mix = xFadeFilt.Process(oscMix, filtered);
+    
     float out =  touchEnvLevel * mix;
 
     if (stealFade) {

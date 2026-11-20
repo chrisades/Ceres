@@ -39,10 +39,10 @@ int main(void)
 {
     hardware.Init();
     hardware.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
-    hardware.SetAudioBlockSize(24);
+    hardware.SetAudioBlockSize(96);
 
     HW::hw().setHW(&hardware);
-	// HW::hw().startLog();
+	//HW::hw().startLog();
 
     float sampleRate = hardware.AudioSampleRate();
     size_t blockSize = hardware.AudioBlockSize();

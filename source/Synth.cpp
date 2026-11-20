@@ -12,8 +12,21 @@ void Synth::Init(float sampleRate, size_t blockSize)
     delay2L.Init(sampleRate, &delayLines[1]);
     delay1R.Init(sampleRate, &delayLines[2]);
     delay2R.Init(sampleRate, &delayLines[3]);
-    delSmoothCoef = 1.0f / (0.07f * sampleRate);
+    smoothCoef = 1.0f / (0.7f * sampleRate);
     delXFade.Init(CROSSFADE_EXP);
+
+    noise.Init();
+
+    StaticShelfFilter<2>::Params p;
+    p.lowFreqHz  = 120.0f;  
+    p.lowGainDB  =  3.0f;
+    p.highFreqHz = 6000.0f; 
+    p.highGainDB = -15.0f;
+    p.slope = 0.707f;
+    shelf.Init(sampleRate);
+
+    limiterL.Init();
+    limiterR.Init();
 
 }
 
@@ -21,7 +34,7 @@ void Synth::Process(daisy::AudioHandle::OutputBuffer &out, size_t size)
 {
     float mixL;
     float mixR;
-    float level;
+
 
     for(int v = 0; v < NUM_VOICES; ++v) {
         voice[v].UpdateParams(params);
@@ -30,38 +43,40 @@ void Synth::Process(daisy::AudioHandle::OutputBuffer &out, size_t size)
     for(size_t i = 0; i < size; ++i) {
         mixL = 0.0f;
         mixR = 0.0f;
+        float numActive = 0.0f;
 
+        float n = noise.Process();
         for(int v = 0; v < NUM_VOICES; ++v) {
-            float sample = voice[v].Process();
+            float sample = voice[v].Process(n);
+
+            if (voice[v].GetTouchEnvLvl() > 0.01f) {
+                numActive++;
+            }
 
             mixL += voice[v].GetPanLeft() * sample;
             mixR += voice[v].GetPanRight() * sample;
         }
 
+        fonepole(width, 2.0f * numActive / static_cast<float>(NUM_VOICES), smoothCoef);
+        float mid  = 0.5f * (mixL + mixR);
+        float side = 0.5f * (mixL - mixR) * width;
+        mixL = mid + side;
+        mixR = mid - side;
+
+        // if (numActive == 0) { numActive++; }
+        // fonepole(level, 0.15f * static_cast<float>(NUM_VOICES) / (numActive), smoothCoef);
         level = 0.15f;
 
-        // float width = 2.0f * potValue[6];
-        // float mid  = 0.5f * (mixL + mixR);
-        // float side = 0.5f * (mixL - mixR) * width;
-        // mixL = mid + side;
-        // mixR = mid - side;
-
-        // fonepole(delTime1, 0.001f + 0.1f * potValue[1], delSmoothCoef); 
-        // fonepole(delTime2, 0.001f + 0.1f * (1.0f - potValue[4]), delSmoothCoef); 
-        // fonepole(delTime1, 1.0f / (fmap(potValue[0], MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG)), delSmoothCoef); 
-        // fonepole(delTime2, 1.0f / (fmap(potValue[5], MIN_OSC_FREQ, MAX_OSC_FREQ, Mapping::LOG)), delSmoothCoef); 
-        fonepole(delTime1, 1.0f / (fmap(potValue[3], 0.4f, 20.0f, Mapping::LOG)), delSmoothCoef); 
-        fonepole(delTime2, 1.0f / (fmap(1.0f - potValue[3], 0.4f, 20.0f, Mapping::LOG)), delSmoothCoef); 
+        fonepole(delTime1, 1.0f / (fmap(potValue[3], 0.4f, 20.0f, Mapping::LOG)), smoothCoef); 
+        fonepole(delTime2, 1.0f / (fmap(1.0f - potValue[3], 0.4f, 20.0f, Mapping::LOG)), smoothCoef); 
 
         delay1L.SetDelayS(delTime1);
         delay1R.SetDelayS(delTime1);
         delay2L.SetDelayS(delTime2);
         delay2R.SetDelayS(delTime2);
 
-        // float feed1 = 0.5f;
-        // float feed2 = 0.5f;
-        float feed1 = 0.8f * (1.0f - potValue[2]);
-        float feed2 = 0.8f * potValue[2];
+        float feed1 = 0.86f * (1.0f - potValue[2]);
+        float feed2 = 0.86f * potValue[2];
         delay1L.SetFeedback(feed1);
         delay1R.SetFeedback(feed1);
         delay2L.SetFeedback(feed2);
@@ -69,12 +84,17 @@ void Synth::Process(daisy::AudioHandle::OutputBuffer &out, size_t size)
         float delMixL = 2.0f * delay2L.Process(delay1L.Process(mixL));
         float delMixR = 2.0f * delay2R.Process(delay1R.Process(mixR));
 
-        fonepole(delXFadeAmt, fclamp(5.0f * potValue[6] - 4.0f, 0.0f, 1.0f), delSmoothCoef);
+        // fonepole(delXFadeAmt, fclamp(5.0f * potValue[6] - 4.0f, 0.0f, 1.0f), smoothCoef);
+        fonepole(delXFadeAmt, delXFadeAmtTarget, smoothCoef);
+
         delXFade.SetPos(delXFadeAmt);
 
-        out[0][i] = SoftClip(level * delXFade.Process(mixL, delMixL));
-        out[1][i] = SoftClip(level * delXFade.Process(mixR, delMixR));
+        out[0][i] = shelf.Process(0, delXFade.Process(mixL, delMixL));
+        out[1][i] = shelf.Process(1, delXFade.Process(mixR, delMixR));
     }
+
+    limiterL.ProcessBlock(out[0], size, level);
+    limiterR.ProcessBlock(out[1], size, level);
 }
 
 
@@ -97,16 +117,24 @@ void Synth::UpdateParams()
     { params.pitchSwap = true; }
     else { params.pitchSwap = false; }
 
-    if (padPressed[10])
-    { params.trillTrigMode = TRILL_TRIG_MODE_2; }
-    else { params.trillTrigMode = TRILL_TRIG_MODE_1; }
+    if (padPressed[10]){ 
+        params.trillTrigMode = TRILL_TRIG_MODE_2;
+        delXFadeAmtTarget = 1.0f;
+    } else { 
+        params.trillTrigMode = TRILL_TRIG_MODE_1; 
+        delXFadeAmtTarget = 0.0f;
+    }
 
-    if (padPressed[11])
-    { params.trackingMode = TRACKING_BOTH; }
-    else { params.trackingMode = TRACKING_OSC; }
+    if (padPressed[11]) { 
+        //params.trackingMode = TRACKING_BOTH; 
+        params.filterAmtTarget = 1.0f;
+    } else { 
+        //params.trackingMode = TRACKING_OSC; 
+        params.filterAmtTarget = 0.0f;
+    }
 
-    params.touchEnvAtk = 15.0f;
-    params.touchEnvRel = 15.0f;
+    params.touchEnvAtk = 25.0f;
+    params.touchEnvRel = 30.0f;
     params.shape = 0.5f;
 
     switch (switchAValue) {
@@ -145,11 +173,6 @@ void Synth::PadTouch(int pad)
     //     //params.touchEnvMode = ((params.touchEnvMode + 1) % NUM_TOUCH_ENV_MODES); 
     // }
 
-    if (pad == 0) { 
-        // octaveIndex = (octaveIndex + 1) % 4;
-        // octave = exp2f(static_cast<float>(octaveIndex)); 
-    }
-
     if (pad == 1) { 
         // padScaleIndex = ((padScaleIndex + 1) % NUM_PAD_SCALES); 
         lastHold = hold;
@@ -160,9 +183,9 @@ void Synth::PadTouch(int pad)
         }
     }
 
-    if (pad == 2) { 
-        // params.trackingMode = ((params.trackingMode + 1) % NUM_TRACKING_MODES); 
-    }
+    // if (pad == 2) { 
+    //     // params.trackingMode = ((params.trackingMode + 1) % NUM_TRACKING_MODES); 
+    // }
 
     if (PAD_SCALE_MAP[pad] != NULL_PLACE) {
         VoiceStart(pad);

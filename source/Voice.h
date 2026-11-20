@@ -5,6 +5,8 @@
 #include "WavetableOsc.h"
 #include "Rungler.h"
 
+#include "DualBandpass.h"
+
 enum
 {
     TOUCH_ENV_FAST,
@@ -66,12 +68,13 @@ struct VoiceParams {
     uint8_t trillTrigMode = TRILL_TRIG_MODE_1;
     float modMult = 1.0f;
     bool pitchSwap = false;
+    float filterAmtTarget = 0.0f;
 };
 
 class Voice {
     public:
         void Init(float sampleRate, size_t blockSize);
-        float Process();
+        float Process(float noise);
         bool IsActive();
         bool IsInRelease();
         void UpdateParams(const VoiceParams& params);
@@ -102,10 +105,13 @@ class Voice {
         TrillClock trillClk;
         std::array<uint8_t, 2> lastTrillClkVal;
 
+
         Rungler runglerA;
         float rungOutA = 0.0f;
         Rungler runglerB;
         float rungOutB = 0.0f;
+
+        
 
         Metro panClk;
         uint8_t lastPanClkVal;
@@ -115,12 +121,7 @@ class Voice {
         float panR = 0.707f;
         float panLTarget = 0.707f;
         float panRTarget = 0.707f;
-        float slowSmoothCoef;
-
-        // VowelFilter vFilt;
-        // int phoneme1;
-        // int phoneme2;
-        // float vowelMorph;
+        float panSmoothCoef;
 
         float widthAMod = 0.0f;
         float widthBMod = 0.0f;
@@ -137,8 +138,17 @@ class Voice {
         float morphModA = 0.0f;
         float morphModB = 0.0f;
 
+        float modMult = 0.0f;
+
         CrossFade xFade;
-        CrossFade xFadeFX;
+        CrossFade xFadeFreqs;
+        float xFadeFreqsPos;
+        float xFadeSmoothCoef;
+        float mixSmoothCoef;
+
+        CrossFade xFadeFilt;
+        float filtSmoothCoef;
+        DualBandpass filt;
 
         float XOR16f(float f1, float f2);
         float QuarterSine(float x);
@@ -165,7 +175,7 @@ class Voice {
         //values that need smoothing
         float morph = 0.5f;
         float xFadeAmt = 0.5f;
-        float xFadeFXAmt = 0.5f;
+        float xFadeFiltAmt = 0.0f;
         float modDepth = 0.0f;
         float smoothCoef;
 

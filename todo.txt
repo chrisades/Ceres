@@ -1,27 +1,10 @@
 
--Smooth MorphMode switching
-
--P00 : Pitch Swap Activate
--P01 : hold
--P02 : Ring Mod Activate
-
--Switch A : Envelope shapes
-
--Smooth RungOuts?
-
--Think about trill env shape
-
--Turning widths all the way to 1 changes the trillEnvs min value to approach 1?
--Set Frequency at Trill Clk Triggers in Voice::Process()
--Perhaps add a smoother to fmods if needed
+-Set Frequency at Trill Clk Triggers in Voice::Process()?
+-Fix the frequency jump that happens when switching to reso
 
 -Audio In:
-envelope follower that modulates mod-depth and ring modulates with pre effect output
-
--Add a high requency shelf to cool down high end
--Add a low shelf to boost low end
-
--Add a limiter?
+envelope follower that modulates mod-depth?
+ring modulates with pre effect output
 
 -Implement MIDI Notes and CC
 -Remove all unused functions and variables

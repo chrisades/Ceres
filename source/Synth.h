@@ -4,6 +4,7 @@
 #include "Voice.h"
 #include "Log.h"
 #include "Delay.h"
+#include "StaticShelfFilter.h"
 
 class Synth {
 public:
@@ -28,25 +29,41 @@ private:
     Voice voice[NUM_VOICES];
     VoiceParams params;
 
+    Limiter limiterL;
+    Limiter limiterR;
+
     Delay delay1L;
     Delay delay2L;
     Delay delay1R;
     Delay delay2R;
     float delTime1 = 1.0f;
     float delTime2 = 1.0f;
-    float delSmoothCoef;
+
+    float smoothCoef;
+
+    WhiteNoise noise;
+
+    StaticShelfFilter<2> shelf;
 
     CrossFade delXFade;
     float delXFadeAmt = 0.0f;
+    float delXFadeAmtTarget = 0.0f;
 
+    Rungler runglerFilt;
+    Metro filtClk;
+    float lastFiltClkVal = 0.0f;
 
     float octave = 1.0f;
     uint8_t octaveIndex = 0;
     int padScaleIndex = 0;
     int lastPlayedVoice = 0;
 
+    float width = 0.0f;
+
     bool hold = false;
     bool lastHold = false;
+
+    float level = 0.15;
 
     void ReleaseHeldVoices();
 

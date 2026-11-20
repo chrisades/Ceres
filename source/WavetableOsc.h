@@ -36,6 +36,8 @@ public:
         savedIndex = 0.0f;;
         phase = 0.0f;
         pd = 0.5f;
+
+        smoothCoef = 1.0f / (0.05f * sampleRate);
     }
 
     float Process();
@@ -68,7 +70,12 @@ private:
     float savedIndex;
     float phase;
     float pd;
-    int mode = PD_MODE_1;
+    float smoothN = 1.0f;
+    float smoothCoef = 0.0f;
+
+    int  mode = PD_MODE_1;
+    int  pendingMode = PD_MODE_1;
+    bool modePending = false;
 
     float k1;
 
@@ -81,4 +88,7 @@ private:
     float ResoDistort(float phase_);
     float TriDistort(float phase_);
     float StepDistort(float phase_);
+    float PhaseFM(float phase_);
+    float SCurveDistort(float phase_);
+    float SineToSquare(float phase_);
 };
