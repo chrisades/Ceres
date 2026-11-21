@@ -19,7 +19,7 @@ void Synth::Init(float sampleRate, size_t blockSize)
 
     StaticShelfFilter<2>::Params p;
     p.lowFreqHz  = 120.0f;  
-    p.lowGainDB  =  3.0f;
+    p.lowGainDB  =  0.0f;
     p.highFreqHz = 6000.0f; 
     p.highGainDB = -15.0f;
     p.slope = 0.707f;

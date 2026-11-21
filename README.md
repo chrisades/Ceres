@@ -6,7 +6,7 @@ Built for the [Synthux Simple Touch 2](https://www.synthux.academy/store/simple-
 Faceplate comming soon...
 
 ## VIDEO
-[![Watch the demo](https://img.youtube.com/vi/WhIm2kJVOp4/maxresdefault.jpg)](https://www.youtube.com/watch?v=BUYV51Ar4XQ)
+[![Watch the demo](https://img.youtube.com/vi/WhIm2kJVOp4/maxresdefault.jpg)](https://www.youtube.com/watch?v=DTg8Pl2peVQ)
 
 ## QUICK INSTALL
 Download the [Binary file](https://github.com/chrisades/Ceres/releases/latest/download/Ceres.bin) and flash using the [Daisy Seed web programmer](https://flash.daisy.audio/)

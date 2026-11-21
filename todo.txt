@@ -1,4 +1,3 @@
-
 -Set Frequency at Trill Clk Triggers in Voice::Process()?
 -Fix the frequency jump that happens when switching to reso
 
